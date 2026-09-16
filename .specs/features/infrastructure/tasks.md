@@ -373,11 +373,11 @@ T12 -> T13
 
 **Done when**:
 
-- [ ] `docker compose config -q` exits 0 for the full compose file (all nine services, including `pgadmin`)
-- [ ] `docker compose up -d --wait postgres minio mailhog pgadmin` exits 0 and `docker compose ps` shows all four Up/healthy - these have no dependency on the unbuilt submodules, so this check runs for real
+- [x] `docker compose config -q` exits 0 for the full compose file (all nine services, including `pgadmin`)
+- [x] `docker compose up -d --wait postgres minio mailhog pgadmin` exits 0 and `docker compose ps` shows all four Up/healthy - these have no dependency on the unbuilt submodules, so this check runs for real
 - [ ] DEFERRED: `docker compose up -d --wait` for the full stack (backend, reverb, web-app, admin-panel, landing-page-plans) - blocked on T1-T4's images, which can't build until `api/`, `website/`, `admin/`, `landingpage/` have real source
-- [ ] `docker compose ps` does NOT show a `playwright` container after a plain `docker compose up` (profile isolation verified against the services that do run)
-- [ ] `docker compose down` cleanly stops and removes all containers that were started
+- [x] `docker compose ps` does NOT show a `playwright` container after a plain `docker compose up` (profile isolation verified against the services that do run)
+- [x] `docker compose down` cleanly stops and removes all containers that were started
 
 **Tests**: none
 **Gate**: build
