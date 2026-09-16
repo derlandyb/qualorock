@@ -370,7 +370,7 @@ T43 -> T44
 
 ---
 
-### T6: DataExportRequest migration + model
+### T6: DataExportRequest migration + model ✅
 
 **What**: Migration and model for `DataExportRequest` (organizerId FK, status enum pending/ready/failed, downloadUrl nullable, requestedAt).
 **Where**: `backend/database/migrations/xxxx_create_data_export_requests_table.php, backend/app/Infrastructure/Persistence/Eloquent/DataExportRequest.php`
@@ -384,9 +384,9 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Migration matches design.md's `DataExportRequest` interface
-- [ ] Model defines `belongsTo(Organizer::class)`
-- [ ] `php artisan migrate --pretend` runs without error
+- [x] Migration matches design.md's `DataExportRequest` interface
+- [x] Model defines `belongsTo(Organizer::class)`
+- [x] `php artisan migrate --pretend` runs without error
 
 **Tests**: none
 **Gate**: build
