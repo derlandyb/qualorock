@@ -395,7 +395,7 @@ T43 -> T44
 
 ---
 
-### T7: EventInfoRequest migration + model (design gap filled here)
+### T7: EventInfoRequest migration + model (design gap filled here) ✅
 
 **What**: Migration and model for a consumer-submitted info/update request on an event (eventId FK, consumerUserId, message, organizerResponse nullable, respondedAt nullable) - design.md's Components section doesn't name this entity explicitly; it's required by spec AC ADMIN-16 ('a user submits an info/update request... surfaced to the organizer with the ability to respond') and follows the same FK/ownership pattern as the rest of the feature.
 **Where**: `backend/database/migrations/xxxx_create_event_info_requests_table.php, backend/app/Infrastructure/Persistence/Eloquent/EventInfoRequest.php`
@@ -409,9 +409,11 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Migration FKs `event_id` to `events`
-- [ ] Model defines `belongsTo(Event::class)` and exposes `respond(string $response)`
-- [ ] `php artisan migrate --pretend` runs without error
+- [x] Migration FKs `event_id` to `events`
+- [x] Model defines `belongsTo(Event::class)` and exposes `respond(string $response)`
+- [x] `php artisan migrate --pretend` runs without error
+
+**Spec gap noted**: `consumer_user_id` has no FK constraint - web-app owns the consumer User model and hasn't been executed yet (data-owner-first order per project CLAUDE.md). Stored as a plain unsigned bigint, same pattern as T5's `set_by_super_admin_id` gap.
 
 **Tests**: none
 **Gate**: build
