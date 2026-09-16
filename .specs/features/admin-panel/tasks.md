@@ -240,7 +240,7 @@ T43 -> T44
 
 ## Task Breakdown
 
-### T1: Organizer migration + model
+### T1: Organizer migration + model ✅
 
 **What**: Migration and Eloquent model for `Organizer` (orgName, contactName, email unique, phone, passwordHash, planTier enum, approvalState enum, rejectionReason nullable, consentGivenAt, soft-delete `deletedAt`).
 **Where**: `backend/database/migrations/xxxx_create_organizers_table.php, backend/app/Infrastructure/Persistence/Eloquent/Organizer.php, backend/app/Domain/Entities/Organizer.php, backend/app/Domain/Contracts/OrganizerRepositoryInterface.php, backend/app/Infrastructure/Persistence/Eloquent/EloquentOrganizerRepository.php`
@@ -254,10 +254,10 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Migration creates `organizers` table matching design.md's `Organizer` interface exactly, including `SoftDeletes`
-- [ ] Model casts `approvalState`/`planTier` as enums and exposes a `deletedAt` scope
-- [ ] `php artisan migrate --pretend` runs without error
-- [ ] GIVEN Clean Architecture (AD-012) THEN `Domain/Entities/Organizer.php` (plain, framework-agnostic) and `Domain/Contracts/OrganizerRepositoryInterface.php` exist, and the Eloquent model implements that interface via a matching `Infrastructure/Persistence/Eloquent/EloquentOrganizerRepository.php`
+- [x] Migration creates `organizers` table matching design.md's `Organizer` interface exactly, including `SoftDeletes`
+- [x] Model casts `approvalState`/`planTier` as enums and exposes a `deletedAt` scope
+- [x] `php artisan migrate --pretend` runs without error
+- [x] GIVEN Clean Architecture (AD-012) THEN `Domain/Entities/Organizer.php` (plain, framework-agnostic) and `Domain/Contracts/OrganizerRepositoryInterface.php` exist, and the Eloquent model implements that interface via a matching `Infrastructure/Persistence/Eloquent/EloquentOrganizerRepository.php`
 
 **Tests**: none
 **Gate**: build
@@ -266,7 +266,7 @@ T43 -> T44
 
 ---
 
-### T2: Venue migration + model
+### T2: Venue migration + model ✅
 
 **What**: Migration and Eloquent model for `Venue` (organizerId FK, name, description, address, contactInfo, imageUrl nullable), one venue per organizer per current scope.
 **Where**: `backend/database/migrations/xxxx_create_venues_table.php, backend/app/Infrastructure/Persistence/Eloquent/Venue.php`
@@ -280,9 +280,9 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Migration FKs `organizer_id` to `organizers` with a unique constraint (one venue per organizer)
-- [ ] Model defines `belongsTo(Organizer::class)`
-- [ ] `php artisan migrate --pretend` runs without error
+- [x] Migration FKs `organizer_id` to `organizers` with a unique constraint (one venue per organizer)
+- [x] Model defines `belongsTo(Organizer::class)`
+- [x] `php artisan migrate --pretend` runs without error
 
 **Tests**: none
 **Gate**: build
@@ -291,7 +291,7 @@ T43 -> T44
 
 ---
 
-### T3: Event migration + model
+### T3: Event migration + model ✅
 
 **What**: Migration and Eloquent model for `Event` (organizerId, venueId FKs, title, description, dateTime, location, fullAddress, featuredImageUrl, externalTicketLink, priceType, musicCategory, capacity nullable, ageRange nullable, additionalInfo/accessibilityInfo/eventRules nullable, status enum, publishedAt nullable).
 **Where**: `backend/database/migrations/xxxx_create_events_table.php, backend/app/Infrastructure/Persistence/Eloquent/Event.php, backend/app/Domain/Entities/Event.php, backend/app/Domain/Contracts/EventRepositoryInterface.php, backend/app/Infrastructure/Persistence/Eloquent/EloquentEventRepository.php`
@@ -305,10 +305,10 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Migration matches design.md's `Event` interface field-for-field
-- [ ] Model casts `status` as an enum with the four values (draft/published/cancelled/closed)
-- [ ] `php artisan migrate --pretend` runs without error
-- [ ] GIVEN Clean Architecture (AD-012) THEN `Domain/Entities/Event.php` (plain, framework-agnostic) and `Domain/Contracts/EventRepositoryInterface.php` exist, and the Eloquent model implements that interface via a matching `Infrastructure/Persistence/Eloquent/EloquentEventRepository.php`
+- [x] Migration matches design.md's `Event` interface field-for-field
+- [x] Model casts `status` as an enum with the four values (draft/published/cancelled/closed)
+- [x] `php artisan migrate --pretend` runs without error
+- [x] GIVEN Clean Architecture (AD-012) THEN `Domain/Entities/Event.php` (plain, framework-agnostic) and `Domain/Contracts/EventRepositoryInterface.php` exist, and the Eloquent model implements that interface via a matching `Infrastructure/Persistence/Eloquent/EloquentEventRepository.php`
 
 **Tests**: none
 **Gate**: build
@@ -317,7 +317,7 @@ T43 -> T44
 
 ---
 
-### T4: Promoter + EventPromoter migrations + models
+### T4: Promoter + EventPromoter migrations + models ✅
 
 **What**: Migration and model for `Promoter` (organizerId FK, name, phone, email, instagramUrl, tiktokUrl) plus the `EventPromoter` pivot table (eventId, promoterId).
 **Where**: `backend/database/migrations/xxxx_create_promoters_table.php, backend/database/migrations/xxxx_create_event_promoter_table.php, backend/app/Infrastructure/Persistence/Eloquent/Promoter.php`
@@ -331,9 +331,9 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Promoter migration FKs to `organizers`; pivot table FKs to both `events` and `promoters` with a composite unique key
-- [ ] Model defines `belongsToMany(Event::class)` via the pivot
-- [ ] `php artisan migrate --pretend` runs without error
+- [x] Promoter migration FKs to `organizers`; pivot table FKs to both `events` and `promoters` with a composite unique key
+- [x] Model defines `belongsToMany(Event::class)` via the pivot
+- [x] `php artisan migrate --pretend` runs without error
 
 **Tests**: none
 **Gate**: build
@@ -342,7 +342,7 @@ T43 -> T44
 
 ---
 
-### T5: PlanPrice migration + model
+### T5: PlanPrice migration + model ✅
 
 **What**: Append-only migration and model for `PlanPrice` (tier, amount in integer cents, effectiveFrom, effectiveTo nullable, setBySuperAdminId) - never updated in place per design.md's Tech Decisions.
 **Where**: `backend/database/migrations/xxxx_create_plan_prices_table.php, backend/app/Infrastructure/Persistence/Eloquent/PlanPrice.php, backend/app/Domain/Entities/PlanPrice.php, backend/app/Domain/Contracts/PlanPriceRepositoryInterface.php, backend/app/Infrastructure/Persistence/Eloquent/EloquentPlanPriceRepository.php`
@@ -356,10 +356,12 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Migration matches design.md's `PlanPrice` interface
-- [ ] Model has no `update`-in-place helper exposed - only `create` (append-only) is used elsewhere
-- [ ] `php artisan migrate --pretend` runs without error
-- [ ] GIVEN Clean Architecture (AD-012) THEN `Domain/Entities/PlanPrice.php` (plain, framework-agnostic) and `Domain/Contracts/PlanPriceRepositoryInterface.php` exist, and the Eloquent model implements that interface via a matching `Infrastructure/Persistence/Eloquent/EloquentPlanPriceRepository.php`
+- [x] Migration matches design.md's `PlanPrice` interface
+- [x] Model has no `update`-in-place helper exposed - only `create` (append-only) is used elsewhere
+- [x] `php artisan migrate --pretend` runs without error
+- [x] GIVEN Clean Architecture (AD-012) THEN `Domain/Entities/PlanPrice.php` (plain, framework-agnostic) and `Domain/Contracts/PlanPriceRepositoryInterface.php` exist, and the Eloquent model implements that interface via a matching `Infrastructure/Persistence/Eloquent/EloquentPlanPriceRepository.php`
+
+**Spec gap noted**: `set_by_super_admin_id` has no FK constraint - no `super_admins` table exists in any admin-panel task (T8 only configures the guard; Super Admin provisioning is out-of-band per AD-003). Stored as a plain unsigned bigint. Surfaced here for whoever builds the `super_admin` guard's user provider (T8) or later, not fixed as part of this task.
 
 **Tests**: none
 **Gate**: build
@@ -368,7 +370,7 @@ T43 -> T44
 
 ---
 
-### T6: DataExportRequest migration + model
+### T6: DataExportRequest migration + model ✅
 
 **What**: Migration and model for `DataExportRequest` (organizerId FK, status enum pending/ready/failed, downloadUrl nullable, requestedAt).
 **Where**: `backend/database/migrations/xxxx_create_data_export_requests_table.php, backend/app/Infrastructure/Persistence/Eloquent/DataExportRequest.php`
@@ -382,9 +384,9 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Migration matches design.md's `DataExportRequest` interface
-- [ ] Model defines `belongsTo(Organizer::class)`
-- [ ] `php artisan migrate --pretend` runs without error
+- [x] Migration matches design.md's `DataExportRequest` interface
+- [x] Model defines `belongsTo(Organizer::class)`
+- [x] `php artisan migrate --pretend` runs without error
 
 **Tests**: none
 **Gate**: build
@@ -393,7 +395,7 @@ T43 -> T44
 
 ---
 
-### T7: EventInfoRequest migration + model (design gap filled here)
+### T7: EventInfoRequest migration + model (design gap filled here) ✅
 
 **What**: Migration and model for a consumer-submitted info/update request on an event (eventId FK, consumerUserId, message, organizerResponse nullable, respondedAt nullable) - design.md's Components section doesn't name this entity explicitly; it's required by spec AC ADMIN-16 ('a user submits an info/update request... surfaced to the organizer with the ability to respond') and follows the same FK/ownership pattern as the rest of the feature.
 **Where**: `backend/database/migrations/xxxx_create_event_info_requests_table.php, backend/app/Infrastructure/Persistence/Eloquent/EventInfoRequest.php`
@@ -407,9 +409,11 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Migration FKs `event_id` to `events`
-- [ ] Model defines `belongsTo(Event::class)` and exposes `respond(string $response)`
-- [ ] `php artisan migrate --pretend` runs without error
+- [x] Migration FKs `event_id` to `events`
+- [x] Model defines `belongsTo(Event::class)` and exposes `respond(string $response)`
+- [x] `php artisan migrate --pretend` runs without error
+
+**Spec gap noted**: `consumer_user_id` has no FK constraint - web-app owns the consumer User model and hasn't been executed yet (data-owner-first order per project CLAUDE.md). Stored as a plain unsigned bigint, same pattern as T5's `set_by_super_admin_id` gap.
 
 **Tests**: none
 **Gate**: build
