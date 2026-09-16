@@ -455,9 +455,11 @@ T12 -> T13
 
 **Done when**:
 
-- [ ] Doc lists every compose service and its purpose, including `pgadmin`
-- [ ] Doc lists every Makefile target and what it does, including `mobile-android`/`mobile-ios`
-- [ ] Doc restates the host-vs-container split and the Playwright test-only profile
+- [x] Doc lists every compose service and its purpose, including `pgadmin`
+- [x] Doc lists every Makefile target and what it does, including `mobile-android`/`mobile-ios`
+- [x] Doc restates the host-vs-container split and the Playwright test-only profile
+
+Verified via grep against `docker-compose.yml`/`Makefile`/`docs/development.md` (no INFRA-NN traceability row - this task traces to AD-014, not a numbered requirement).
 
 **Tests**: none
 **Gate**: build
