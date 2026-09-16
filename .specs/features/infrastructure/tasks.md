@@ -401,7 +401,7 @@ T12 -> T13
 
 **Done when**:
 
-- [ ] `DatabaseSeeder::run()` calls `AdminPanelSeeder` before `WebAppSeeder`, in FK-safe order, and the `seed` Makefile target exists
+- [x] `DatabaseSeeder::run()` calls `AdminPanelSeeder` before `WebAppSeeder`, in FK-safe order, and the `seed` Makefile target exists
 - [ ] DEFERRED: `make seed` running with zero foreign-key errors on a freshly migrated database - `AdminPanelSeeder`/`WebAppSeeder` and the `api/` Laravel app don't exist yet (blocked on admin-panel/web-app/infra Phase-1 execution)
 - [ ] DEFERRED: idempotency of running `make seed` twice in a row - same blocker
 - [ ] DEFERRED: `make up && make seed` succeeding end-to-end on a clean checkout - same blocker

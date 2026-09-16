@@ -1,4 +1,4 @@
-.PHONY: up down logs ps build test-e2e mobile-android mobile-ios
+.PHONY: up down logs ps build test-e2e seed mobile-android mobile-ios
 
 # Bring up every default-profile containerized service (backend, reverb,
 # postgres, minio, mailhog, pgadmin, web-app, admin-panel, landing-page-plans).
@@ -21,6 +21,11 @@ build:
 # The only target that starts Playwright, via its dedicated compose profile.
 test-e2e:
 	docker compose --profile test run --rm playwright
+
+# Runs Laravel's DatabaseSeeder (AdminPanelSeeder, then WebAppSeeder) against
+# the running backend service.
+seed:
+	docker compose exec backend php artisan db:seed
 
 # mobile-app (submodule dir: mobile/) runs on the host, not in Docker (see
 # docs/development.md). These targets fail fast with a clear message when
