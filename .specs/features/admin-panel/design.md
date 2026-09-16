@@ -156,6 +156,14 @@ interface DataExportRequest {
 - **Interfaces**: `POST /organizer/data-export`, `POST /organizer/account/delete`
 - **Dependencies**: queued export job (Laravel Queue) generating a downloadable archive from `Organizer`, `Venue`, `Event`, `Promoter` rows scoped to that organizer.
 
+### AuthController / LoginOrganizer (new, added during Phase 2 Execute — ADMIN-04)
+
+- **Purpose**: Organizer login. Authenticates identity only (email/password) — approval-state gating is a separate concern, enforced by the `organizer.approved` middleware below, not this component.
+- **Location**: `backend/app/Presentation/Http/Controllers/Organizer/AuthController.php` (Presentation) → `backend/app/Application/UseCases/OrganizerAuth/LoginOrganizer.php` (Application) → the `organizer` Sanctum guard/provider (Infrastructure, configured in `config/auth.php`).
+- **Interfaces**: `POST /organizer/login`.
+- **Layering note**: unlike this feature's other use-cases, `LoginOrganizer` calls `Auth::guard('organizer')->attempt()` directly and returns the Eloquent `Organizer` model rather than routing through `OrganizerRepositoryInterface`/`Domain\Entities\Organizer`. This wasn't specced here originally (this component didn't exist until tasks.md's T10 added it); the deviation is deliberate — establishing a framework session via Laravel's guard/provider is unavoidably an Infrastructure-coupled operation, and forcing it through the Domain repository contract would add indirection without a corresponding testability or reuse benefit for this one component.
+- **Dependencies**: `EnsureOrganizerApproved` middleware (`organizer.approved` route-middleware alias) — reads the organizer's `approval_state`/`rejection_reason` from a **session snapshot taken at login**, not a live DB query, so a Super Admin approving an organizer mid-session does not retroactively unlock an already-open session (spec's Edge Case) — the organizer must log in again to pick up the new state.
+
 ---
 
 ## Error Handling Strategy

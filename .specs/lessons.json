@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 3,
+  "next_id": 4,
   "lessons": [
     {
       "id": "L-001",
@@ -40,6 +40,24 @@
       ],
       "created": "2026-09-16T13:56:29Z",
       "last_seen": "2026-09-16T13:56:29Z"
+    },
+    {
+      "id": "L-003",
+      "key": "spec_precision_gap::when an acceptance criterion says a list must show an entity s details without enumerating fields assert every field the controller actually returns in the test not a subset so the spec precision gap doesn t hide silently",
+      "text": "When an acceptance criterion says a list must show an entity's details without enumerating fields, assert every field the controller actually returns in the test, not a subset, so the spec-precision gap doesn't hide silently.",
+      "signal": "spec_precision_gap",
+      "scope": "admin-panel",
+      "status": "candidate",
+      "features": [
+        "admin-panel"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "ADMIN-01 (spec.md line 60; validation.md Phase 2 Finding 2) (admin-panel)"
+      ],
+      "created": "2026-09-16T19:45:14Z",
+      "last_seen": "2026-09-16T19:45:14Z"
     }
   ]
 }

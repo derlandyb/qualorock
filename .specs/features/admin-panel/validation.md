@@ -205,3 +205,182 @@ Per this task's brief: this layer has **no tests** by the spec's own Test Covera
 2. Finding 2 (cosmetic): two migration files carry inline rationale comments that duplicate tasks.md's own "Spec gap noted" callouts — AD-014 prefers this rationale live only in docs; no functional impact.
 
 **Next steps**: Neither finding blocks Phase 1 sign-off or the next phase starting. Finding 1 should be picked up as a small fix task by whichever later phase first wires `Event`↔`Promoter` together (likely the EventController/Promoter management phase).
+
+---
+---
+
+## Validation: admin-panel Phase 2 (T8-T10) - PASS ✅
+
+# Admin Panel Validation — Phase 2 (T8–T10: Auth guards & Super Admin approval)
+
+**Date**: 2026-09-16
+**Spec**: `.specs/features/admin-panel/spec.md` ("P1: Organizer access is gated by Super Admin approval", lines 52-66), `.specs/features/admin-panel/design.md` (Architecture Overview lines 9-26; `OrganizerApprovalController`/`SuperAdminOrganizerPolicy` component, lines 120-125; Coding Conventions lines 196-202), `.specs/features/admin-panel/tasks.md` (T8-T10, lines 425-499)
+**Scope**: Phase 2 only — T8 (Sanctum guards), T9 (`OrganizerApprovalController`/`SuperAdminOrganizerPolicy`), T10 (login-gate denial for pending/rejected organizers). Phase 1 (above) already verified; Phases 3-15 not started.
+**Diff range**: `api` submodule, `main..feat/admin-panel-phase-2-auth-guards` (merge-base `0257c3f`):
+```
+f86aff3 feat(admin-panel): configure organizer and super_admin Sanctum guards
+567da62 feat(admin-panel): add OrganizerApprovalController and policy
+83b765b feat(admin-panel): deny management access to pending/rejected organizers at login
+6ace089 docs(admin-panel): clarify why the CI coverage gate still has no threshold
+```
+**Verifier**: independent sub-agent (author ≠ verifier) — no prior "done" claim trusted; all evidence re-derived from the diff, tests, and live gate runs.
+
+---
+
+## Task Completion
+
+| Task | Status  | Notes |
+| ---- | ------- | ----- |
+| T8   | ✅ Done | `organizer`/`super_admin` guards + `organizers`/`super_admins` providers present in `config/auth.php:47-57,85-94`, distinct from `web`; `php artisan config:show auth` independently re-run and confirms both guards; session cookie Secure/HttpOnly/SameSite confirmed (see AD-008 section below) |
+| T9   | ✅ Done | `OrganizerApprovalController` (list/approve/reject) + `SuperAdminOrganizerPolicy`, all 4 Done-when criteria test-verified; gate `--filter=OrganizerApproval` independently re-run, 4/4 pass |
+| T10  | ✅ Done | `AuthController::login` + `LoginOrganizer` use-case + `EnsureOrganizerApproved` session-snapshot middleware; all 3 Done-when criteria test-verified including the mid-session re-auth requirement; gate `--filter=OrganizerLoginGate` independently re-run, 4/4 pass |
+
+---
+
+## Spec-Anchored Acceptance Criteria (ADMIN-01..05)
+
+| Criterion (WHEN X THEN Y) | Spec-defined outcome | `file:line` + assertion expression | Result |
+| ------------------------- | --------------------- | ----------------------------------- | ------ |
+| ADMIN-01: WHEN a Super Admin opens the pending-organizers list THEN the system SHALL show every organizer account in `pending` state with signup details | List contains only `pending` organizers, with signup fields (org name, email, etc.) present | `tests/Feature/SuperAdmin/OrganizerApprovalTest.php:19-33` — `$response->assertJsonCount(1, 'data')` (excludes the seeded `approved` organizer) + `assertJsonFragment(['id' => $pending->id, 'orgName' => ..., 'email' => ..., 'approvalState' => 'pending'])` | ✅ PASS (⚠️ spec doesn't enumerate which "signup details" fields are required — test checks id/orgName/email/approvalState but not contactName/phone/planTier; flagged as a minor spec-precision gap, not a fail, since the controller's `toResponse()` at `app/Presentation/Http/Controllers/SuperAdmin/OrganizerApprovalController.php:53-64` does return all of them and the count-exclusion of non-pending rows is the AC's real teeth) |
+| ADMIN-02: WHEN a Super Admin approves a pending organizer THEN the system SHALL set state to `approved` and grant management access on next login | `approval_state === Approved`; a subsequent login grants management access | `tests/Feature/SuperAdmin/OrganizerApprovalTest.php:39-49` — `$this->assertSame(OrganizerApprovalState::Approved, $organizer->fresh()->approval_state)`; "next login" half of the AC covered by `tests/Feature/Organizer/OrganizerLoginGateTest.php:72-82` — `it_allows_an_approved_organizer_management_access` asserts `->assertOk()` on the management route after login | ✅ PASS (evidence spans two test files, both cited) |
+| ADMIN-03: WHEN a Super Admin rejects a pending organizer THEN the system SHALL set state to `rejected` and record an optional reason | `approval_state === Rejected`, `rejection_reason` stored exactly as submitted | `tests/Feature/SuperAdmin/OrganizerApprovalTest.php:53-67` — `$this->assertSame(OrganizerApprovalState::Rejected, $fresh->approval_state)` + `$this->assertSame('Missing venue documentation.', $fresh->rejection_reason)` | ✅ PASS — exact value asserted, not just presence |
+| ADMIN-04: IF an organizer whose account is `pending`/`rejected` attempts to log in THEN the system SHALL deny access to management and show current state (+ rejection reason, if any) | 403 response; body contains the account's `state` and `rejectionReason` verbatim | `tests/Feature/Organizer/OrganizerLoginGateTest.php:32-45` — `$response->assertForbidden(); $response->assertJson(['state' => 'pending', 'rejectionReason' => null]);` and `:49-67` — `assertJson(['state' => 'rejected', 'rejectionReason' => 'Missing venue documentation.'])` | ✅ PASS — both status code and exact JSON payload values asserted (conjunction check: `assertJson` requires all listed key/value pairs to match, not just key presence) |
+| ADMIN-05: THE system SHALL restrict the pending-organizers list and approve/reject actions to Super Admin accounts only | Non-super-admin caller gets 403 (not 401, not 200) | `tests/Feature/SuperAdmin/OrganizerApprovalTest.php:71-82` — `it_denies_a_non_super_admin`: `$response->assertForbidden()` on both the list and approve endpoints, called `actingAs($organizer, 'organizer')`; unit-level: `tests/Unit/Policies/SuperAdminOrganizerPolicyTest.php:36-51` — `assertFalse` for an `Organizer` instance and for `null` (unauthenticated) across all 3 policy methods | ✅ PASS — exact status code (403) asserted at the integration layer, all branches (organizer, null) asserted at the unit layer |
+
+**Status**: ✅ All 5 ACs covered with a `file:line` + assertion matching the spec-defined outcome; 1 minor spec-precision gap flagged on ADMIN-01 (spec doesn't enumerate which "signup details" fields are required — not a coverage failure).
+
+---
+
+## Edge Cases (spec.md lines 189-195, in scope for Phase 2)
+
+- [x] "IF a Super Admin account itself is deactivated or doesn't exist THEN no organizer can self-approve" — covered indirectly: `SuperAdminOrganizerPolicy` only returns `true` for an `instanceof SuperAdmin`, never for an `Organizer` acting on itself (`tests/Feature/SuperAdmin/OrganizerApprovalTest.php:71-82`, `tests/Unit/Policies/SuperAdminOrganizerPolicyTest.php:36-42`) — there is no code path where an organizer can approve itself, since approval requires a `super_admin`-guard-authenticated user and the guard/provider are entirely separate tables (T8).
+- [x] "IF an organizer's account is approved mid-session THEN the system SHALL require re-authentication before granting management access" — `tests/Feature/Organizer/OrganizerLoginGateTest.php:86-105` (`it_requires_re_authentication_after_a_mid_session_approval`): logs in as `pending`, mutates the DB row to `Approved` directly (simulating an out-of-band approval during an open session), asserts the still-open session's management route stays `403`, then asserts a *second* login-and-check succeeds. This is the strongest test in the diff — it is exactly the discrimination sensor's mutation #2 target (see below) and killed that mutant.
+
+---
+
+## Discrimination Sensor
+
+Isolation method: `cp -r` of `api/` to `/tmp/admin-panel-phase2-sensor` (a plain directory copy, not a git worktree — this submodule's own `.git` did not copy cleanly under the scratch path, so `git worktree add` was not usable there; the fallback file-copy method from validate.md step 1 was used instead). Baseline `git status --porcelain` on the real `api/` tree was clean before sensor work; re-confirmed clean and unchanged after cleanup (`rm -rf` of the scratch directory, no `git stash` used at any point).
+
+| Mutation | File:line | Description | Killed? |
+| -------- | --------- | ------------ | ------- |
+| 1 | `app/Application/Policies/SuperAdminOrganizerPolicy.php:10-13` | `viewPending()` changed from `return $user instanceof SuperAdmin;` to `return true;` | ✅ Killed — `it_denies_a_non_super_admin` failed: expected 403, got 200 |
+| 2 | `app/Presentation/Http/Middleware/EnsureOrganizerApproved.php:22-29` | Changed the session-snapshot read (`$request->session()->get(...)`) to a live DB lookup (`Organizer::find($request->user('organizer')?->id)->approval_state`) | ✅ Killed — `it_requires_re_authentication_after_a_mid_session_approval` failed: expected 403, got 200 (the live-DB version incorrectly grants access mid-session, exactly the regression this test exists to catch) |
+| 3 | `app/Application/UseCases/OrganizerApproval/ApproveOrganizer.php:18` | Swapped `OrganizerApprovalState::Approved` → `OrganizerApprovalState::Rejected` in the approve use-case | ✅ Killed — `it_approves_a_pending_organizer` failed: expected `Approved`, got `Rejected` |
+
+**Sensor depth**: lightweight (default tier) — 3 targeted behavior-level mutations covering the two design decisions called out as highest-risk (policy discrimination, session-snapshot-vs-live-DB) plus one straightforward state-assignment flip.
+**Result**: 3/3 killed — PASS ✅. All three mutations were caught by exactly the test the author's commit messages claim exists for that purpose, confirming the tests are not just present but discriminating.
+
+---
+
+## Payload/Conjunction Check
+
+- `assertJson(['state' => 'pending', 'rejectionReason' => null])` (`OrganizerLoginGateTest.php:44`) and `assertJson(['state' => 'rejected', 'rejectionReason' => 'Missing venue documentation.'])` (`:64-67`) — Laravel's `assertJson` performs a subset-match requiring every listed key **and its exact value** to be present in the response; confirmed this is a value check (not presence-only) by the sensor's mutation 2, which changed the underlying state source and correctly broke this exact assertion.
+- `assertSame(OrganizerApprovalState::Rejected, $fresh->approval_state)` / `assertSame('Missing venue documentation.', $fresh->rejection_reason)` (`OrganizerApprovalTest.php:65-66`) — `assertSame` is a strict value/identity check, not presence.
+- `assertJsonFragment([...])` (`OrganizerApprovalTest.php:29-34`) — also a value-matching (not key-presence-only) assertion; Laravel's `assertJsonFragment` fails if any listed value differs from the response.
+
+No JSON assertion in scope was found to check only key presence without a value.
+
+---
+
+## Gate Check (MANDATORY, re-run independently — not trusted from tasks.md checkmarks or STATE.md's "full test suite green" claim)
+
+All commands below were re-run fresh via `docker run --rm -v "$(pwd)":/app -w /app composer:2 ...` from inside `api/`, on the `feat/admin-panel-phase-2-auth-guards` branch as checked out (no branch switch performed).
+
+| Gate command (from tasks.md) | Result |
+| --- | --- |
+| `php artisan config:show auth` | ✅ Output confirms `guards.organizer.driver=session`, `guards.organizer.provider=organizers`, `guards.super_admin.driver=session`, `guards.super_admin.provider=super_admins`, `providers.organizers.model=App\Infrastructure\Persistence\Eloquent\Organizer`, `providers.super_admins.model=App\Infrastructure\Persistence\Eloquent\SuperAdmin` — matches T8's Done-when exactly |
+| `php artisan test --filter=OrganizerApproval` | ✅ 4 passed (13 assertions), 0 failed |
+| `php artisan test --filter=OrganizerLoginGate` | ✅ 4 passed (12 assertions), 0 failed |
+| `php artisan test` (full suite) | ✅ 13 passed (36 assertions), 0 failed, 0 skipped — matches `.specs/STATE.md`'s "full test suite green (13 tests)" claim, independently confirmed rather than trusted |
+| `vendor/bin/pint --test` | ✅ PASS, 77 files, 0 style violations |
+
+- **Test count before Phase 2**: 2 (the two Laravel-scaffold `ExampleTest`s — Phase 1 added 0 tests per its own "Tests: none" Test Coverage Matrix row)
+- **Test count after Phase 2**: 13
+- **Delta**: +11 new tests (4 `OrganizerApprovalTest` + 4 `OrganizerLoginGateTest` + 3 `SuperAdminOrganizerPolicyTest`) — no test count decrease, no assertions found weakened
+- **Skipped tests**: none
+- **Failures**: none
+
+---
+
+## Clean Architecture (AD-012) / AD-013 Check
+
+**T9 (`OrganizerApprovalController`)** — matches design.md's component description (lines 120-125) exactly:
+- Presentation: `app/Presentation/Http/Controllers/SuperAdmin/OrganizerApprovalController.php` — thin, calls `SuperAdminOrganizerPolicy` + 3 Application use-cases only, no direct Eloquent queries.
+- Application: `app/Application/UseCases/OrganizerApproval/{ListPendingOrganizers,ApproveOrganizer,RejectOrganizer}.php` + `app/Application/Policies/SuperAdminOrganizerPolicy.php` — each a single-purpose use-case, orchestrating via the Domain contract.
+- Domain: `app/Domain/Contracts/OrganizerRepositoryInterface.php` (from Phase 1) — `ApproveOrganizer`/`RejectOrganizer`/`ListPendingOrganizers` all type-hint this interface, never the Eloquent model, and all three return `App\Domain\Entities\Organizer` (the framework-agnostic entity), not the Eloquent model.
+- Infrastructure: `app/Infrastructure/Persistence/Eloquent/EloquentOrganizerRepository.php` (from Phase 1, unmodified) implements the contract; bound in `app/Providers/AppServiceProvider.php:15`.
+- **Result**: ✅ Full 4-layer compliance, no deviation, no direct Eloquent access from Presentation or Application.
+
+**T10 (`AuthController`/`LoginOrganizer`) — design.md does NOT describe this component at all.** Confirmed by re-reading design.md's full Components section (lines 118-157): only `OrganizerApprovalController`, `EventController`, `VenueController`/`PromoterController`, `EngagementDashboardController`, `PlanPricingController`, and `OrganizerDataController` are documented — no `AuthController`, no `LoginOrganizer` use-case, no login endpoint anywhere in design.md. This is a genuine **design-doc gap**: T10 was added directly in tasks.md (its own text says "Wire the organizer login endpoint...") without a corresponding design.md component ever being written. Noting this honestly rather than assuming design.md silently covers it.
+
+Given no documented layering to compare against, the *established pattern* from T9/Phase 1 is the closest applicable baseline, and T10 deviates from it in one respect:
+- `app/Application/UseCases/OrganizerAuth/LoginOrganizer.php:1-18` type-hints and returns `App\Infrastructure\Persistence\Eloquent\Organizer` — the **Eloquent model**, not `App\Domain\Entities\Organizer` (the Domain entity every other Application use-case in this diff returns). It also calls `Illuminate\Support\Facades\Auth::guard('organizer')->attempt(...)` directly, bypassing `OrganizerRepositoryInterface` entirely.
+- `app/Presentation/Http/Controllers/Organizer/AuthController.php:20-33` then reads `$organizer->approval_state->value` / `$organizer->rejection_reason` directly off that Eloquent model.
+- **Assessment**: this is a real, if narrow, Clean-Architecture deviation from AD-012's "Application orchestrates Domain via contracts" description — it is understandable (Laravel's `Auth::attempt()` credential-verification path is themost practical way to do password-hash comparison + session login, and forcing it through a hand-rolled Domain-Entity-returning repository method would duplicate Sanctum session-auth machinery for no functional gain) but it is not what AD-012 literally prescribes, and it is not a doc-approved exception since design.md never discusses this component in the first place. **Flagged as a Finding below, not a blocking fail** — no test asserts on Domain-entity purity here, no spec AC is affected, and functionally the login gate behaves correctly (Gate Check + Discrimination Sensor mutation 2 both confirm this).
+
+**AD-013 spot-check (magic numbers/strings, one class/file)**:
+- One class per file: confirmed across all 19 new/changed PHP files in the diff (`git diff --stat main..feat/admin-panel-phase-2-auth-guards` — every file declares exactly one class/interface).
+- No magic strings: session keys (`organizer_approval_state`, `organizer_rejection_reason`) are named constants in `app/Domain/Constants/AdminPanelConstants.php:5-7`, not inlined at call sites; approval-state comparisons use the `OrganizerApprovalState` backed enum (`->value`), not raw strings, in both `EnsureOrganizerApproved.php:24` and `AuthController.php:26-28`.
+- **AD-014** (no task-referencing comments): confirmed clean — `EnsureOrganizerApproved.php`'s docblock and the `organizer`/`super_admin` guard comment in `config/auth.php` are rationale-explaining, not task/ticket-referencing (e.g. no `// T10` or `// ADMIN-04`), consistent with the convention.
+
+---
+
+## Findings
+
+### Finding 1 — T10's `LoginOrganizer` returns the Eloquent model, not the Domain entity (minor, Clean Architecture deviation)
+
+See Clean Architecture section above. `app/Application/UseCases/OrganizerAuth/LoginOrganizer.php` type-hints/returns `App\Infrastructure\Persistence\Eloquent\Organizer` and calls `Auth::guard('organizer')->attempt()` directly, rather than going through `OrganizerRepositoryInterface` and returning `App\Domain\Entities\Organizer` the way `ApproveOrganizer`/`RejectOrganizer`/`ListPendingOrganizers` do.
+
+- **Severity**: Minor — no spec AC or test depends on Domain-entity purity here; functionally correct and gate-verified. Design.md never documents this component, so there is no literal doc violation, only a departure from the pattern the rest of this phase (and Phase 1) establishes.
+- **Recommendation**: When design.md is next touched for admin-panel, add an `AuthController`/`LoginOrganizer` component entry (closing the doc gap AD-014 implies every component should have), and consider whether a `Auth::guard()`-based login path is an accepted, named exception to AD-012's "orchestrate via contracts" language, or whether a follow-up should wrap it through the repository. Not blocking.
+
+### Finding 2 — ADMIN-01's "signup details" is not spec-precise (spec-precision gap, not a fail)
+
+Spec.md doesn't enumerate which fields constitute "the signup details they submitted." The test (`OrganizerApprovalTest.php:29-34`) checks `id`/`orgName`/`email`/`approvalState` via `assertJsonFragment`, while the controller's `toResponse()` (`OrganizerApprovalController.php:53-64`) actually returns `contactName`/`phone`/`planTier`/`rejectionReason` too — so the implementation is more complete than the test asserts, but the spec itself gives no fixed target to hold the test to. No action required; flagged per validate.md's instruction to surface spec-precision gaps rather than pass silently.
+
+---
+
+## Code Quality
+
+| Principle        | Status |
+| ---------------- | ------ |
+| Minimum code (no speculative flexibility) | ✅ — no endpoints/use-cases beyond T8-T10's literal scope |
+| Surgical changes (only files required for task) | ✅ — `git diff --stat` shows only auth-guard config, the approval controller/policy/use-cases, the login controller/use-case/middleware, their tests, and the honest CI-comment-only 4th commit; nothing pre-existing modified beyond `config/auth.php`, `config/session.php`, `bootstrap/app.php`, `app/Providers/AppServiceProvider.php`, and the two `Organizer`/`SuperAdmin` Eloquent models (extended, not rewritten) |
+| No scope creep | ✅ — no EventController/VenuePolicy/etc. work leaked in from later phases |
+| Matches existing patterns/style | ✅ — consistent with Phase 1's `Eloquent<Entity>` / `<Entity>RepositoryInterface` naming; GIVEN/WHEN/THEN `#[TestDox]` naming matches AD-010 |
+| Spec-anchored outcome check (asserted values match spec) | ✅ — see Spec-Anchored Acceptance Criteria table above; all 5 ACs assert exact values/status codes |
+| Per-layer Coverage Expectation met (Policy: unit, all branches; Controller/route: integration, happy+edge+error) | ✅ — `SuperAdminOrganizerPolicyTest` covers all 3 branches (super admin/organizer/null) per Test Coverage Matrix's "Policy … all branches" row; `OrganizerApprovalTest`/`OrganizerLoginGateTest` cover happy path + the 403 edge cases per the Matrix's "Controller/route … happy path + every listed edge case + error/failure paths" row |
+| Every test in scope maps to a spec AC, listed edge case, or Done-when criterion (no unclaimed tests) | ✅ — all 11 new tests map 1:1 to ADMIN-01..05 or the mid-session Edge Case (see table above); none found testing unrequested behavior |
+| Documented guidelines followed | tasks.md Coding Conventions (lines 16-25), `.specs/STATE.md` AD-012/AD-013/AD-002/AD-008/AD-021 |
+| Layering (AD-012) | ✅ T9 full compliance; ⚠️ T10 minor deviation (Finding 1) — honestly noted, not blocking |
+
+---
+
+## Requirement Traceability Update
+
+| Requirement | Previous Status | New Status |
+| ----------- | ---------------- | ---------- |
+| ADMIN-01 | Design | ✅ Verified (⚠️ spec-precision gap noted on field enumeration) |
+| ADMIN-02 | Design | ✅ Verified |
+| ADMIN-03 | Design | ✅ Verified |
+| ADMIN-04 | Design | ✅ Verified |
+| ADMIN-05 | Design | ✅ Verified |
+
+---
+
+## Summary
+
+**Overall**: ✅ Ready (Phase 2 / T8-T10 only)
+
+**Spec-anchored check**: 5/5 ACs matched spec-defined outcomes with `file:line` evidence; 1 minor spec-precision gap flagged (ADMIN-01's undefined field list) — not a coverage failure
+**Sensor**: 3/3 mutations killed (policy-bypass, live-DB-vs-session-snapshot, approve/reject state flip) — the tests genuinely discriminate against the two highest-risk design decisions in this phase
+**Gate**: 5/5 gate commands passed (config:show, 2 filtered test runs, full suite 13/13, Pint 77 files clean), 0 failed, 0 skipped; test count grew 2→13 (+11), no regressions
+
+**What works**: T8's guard/provider config is exactly as declared and independently reproducible via `config:show auth`; T9's controller/policy/use-cases are a clean, fully-layered implementation matching design.md verbatim, with all 4 Done-when criteria test-proven including the 403-not-401 distinction the author's commit message called out; T10's session-snapshot approach to the mid-session-approval edge case is real (not just claimed) — the discrimination sensor's mutation 2 proves the test would catch a regression to live-DB-checking; the `/api/admin/v1/super-admin/*` routes genuinely have no `auth:super_admin` middleware (confirmed by reading `routes/admin-panel.php`), so the policy really is what produces the 403, matching AD-021/the author's stated design intent.
+
+**Issues found**:
+1. Finding 1 (minor, non-blocking): `LoginOrganizer` returns the Eloquent model and calls `Auth::guard()` directly rather than routing through `OrganizerRepositoryInterface`/`Domain\Entities\Organizer` the way sibling use-cases do — recommend closing the design.md documentation gap for this component in a future pass and deciding whether this is an accepted exception.
+2. Finding 2 (cosmetic): ADMIN-01's "signup details" isn't spec-precise; implementation covers more fields than the test asserts, no functional gap.
+
+**Next steps**: Neither finding blocks Phase 2 sign-off or Phase 3 starting. Recommend adding an `AuthController`/`LoginOrganizer` design.md component entry whenever admin-panel's design.md is next revisited, to close the doc gap AD-014 implies every component should have.

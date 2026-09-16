@@ -26,6 +26,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: Makefile:34-47 (mutation 4) (infra)
 - last seen: 2026-09-16T13:56:29Z
 
+### L-003 - When an acceptance criterion says a list must show an entity's details without enumerating fields, assert every field the controller actually returns in the test, not a subset, so the spec-precision gap doesn't hide silently.
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `admin-panel` · harmful: 0
+- features: admin-panel
+- evidence: ADMIN-01 (spec.md line 60; validation.md Phase 2 Finding 2) (admin-panel)
+- last seen: 2026-09-16T19:45:14Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
