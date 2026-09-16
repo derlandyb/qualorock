@@ -617,9 +617,9 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] GIVEN an organizer WHEN creating/updating their venue THEN the record saves scoped to that organizer - test passes
-- [ ] GIVEN organizer A WHEN attempting to update organizer B's venue THEN the response is 403 - test passes
-- [ ] Gate check passes: `php artisan test --filter=VenueController`
+- [x] GIVEN an organizer WHEN creating/updating their venue THEN the record saves scoped to that organizer - test passes (venue create/delete deliberately out of scope - see design.md's Scope decision; update covered instead, consistent with spec ADMIN-13/14's actual ACs)
+- [x] GIVEN organizer A WHEN attempting to update organizer B's venue THEN the response is 403 - test passes
+- [x] Gate check passes: `php artisan test --filter=VenueController`
 
 **Tests**: integration
 **Gate**: full
@@ -642,10 +642,10 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] GIVEN a promoter linked to 3 events WHEN the organizer edits that promoter THEN all 3 events reflect the change - test passes
-- [ ] GIVEN a promoter linked to a published event WHEN the organizer removes the promoter THEN the event's promoter list no longer includes them but the event itself is untouched (per spec's Edge Case) - test passes
-- [ ] GIVEN an event's promoter list WHEN requested THEN every currently-linked promoter is returned - test passes
-- [ ] Gate check passes: `php artisan test --filter=PromoterController`
+- [x] GIVEN a promoter linked to 3 events WHEN the organizer edits that promoter THEN all 3 events reflect the change - test passes
+- [x] GIVEN a promoter linked to a published event WHEN the organizer removes the promoter THEN the event's promoter list no longer includes them but the event itself is untouched (per spec's Edge Case) - test passes
+- [x] GIVEN an event's promoter list WHEN requested THEN every currently-linked promoter is returned - test passes
+- [x] Gate check passes: `php artisan test --filter=PromoterController`
 
 **Tests**: integration
 **Gate**: full

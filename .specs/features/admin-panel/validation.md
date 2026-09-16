@@ -607,3 +607,156 @@ See AC3 row above. `DuplicateEvent::handle()` (`app/Application/UseCases/Event/D
 **Overall verdict**: ✅ **PASS** — Findings 1-3 (the Major AC5 gap and the two Minor gaps on ownership-denial and the missing-required-fields HTTP path) are fully closed with exact-outcome test evidence and confirmed discriminating by fresh sensor mutations. Finding 4 is substantially narrowed (from 2/15 to 13/15 fields verified) but not fully closed — `dateTime`/`priceType` remain unasserted in the duplicate test. This residual is Minor/spec-precision, the underlying implementation was already confirmed correct by code review in iteration 1, and it does not gate sign-off; it is carried forward as a non-blocking follow-up rather than routed through another fix→re-verify cycle.
 
 **Non-blocking follow-up**: Strengthen `EventControllerTest::it_duplicates_an_organizers_own_event` to also set and assert `dateTime` and `priceType` on the original/duplicate, closing Finding 4 completely.
+
+---
+
+# Admin Panel Validation — Phase 4 (T15–T16: VenueController, PromoterController)
+
+**Date**: 2026-09-16
+**Spec**: `.specs/features/admin-panel/spec.md` ("P2: Manage venue (\"Casa de Shows\") presence", lines 106-118; "P2: Manage promoters", lines 138-151; Edge Cases, line 195)
+**Design**: `.specs/features/admin-panel/design.md` ("VenueController, PromoterController" component, lines 135-142)
+**Tasks**: `.specs/features/admin-panel/tasks.md` (T15, lines 606-627; T16, lines 631-653)
+**Scope**: Phase 4 only — T15 (`VenueController`: show/update/agenda/history) and T16 (`PromoterController`: CRUD + link/unlink + event-promoter list). Phases 1-3 (above) already verified; Phases 5+ not started.
+**Diff range**: `api` repo, `main..HEAD` on `feat/admin-panel-phase-4-venue-promoter`:
+```
+239c305 feat(admin-panel): add VenueController CRUD
+1d34d7f feat(admin-panel): add PromoterController CRUD and event linking
+```
+**Verifier**: independent sub-agent (author ≠ verifier) — no prior "done" claim trusted; all evidence re-derived from the diff, tests, and live gate/sensor runs.
+
+---
+
+## Task Completion
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| T15 | ✅ Done | `VenueController::show/update/agenda/history` implemented; both literal Done-when tests present and pass (`tests/Feature/Organizer/VenueControllerTest.php`). Venue create/delete correctly omitted — see Design Scope-Decision Check below. |
+| T16 | ✅ Done | `PromoterController::index/store/update/destroy/link/unlink/eventPromoters` implemented; all 3 literal Done-when tests present and pass (`tests/Feature/Organizer/PromoterControllerTest.php`). |
+
+---
+
+## Design Scope-Decision Check
+
+Design.md's stated Scope decision (line 141): "Venue has no create/delete endpoint... spec ADMIN-13/14 ACs only cover update plus two read views." Re-derived independently from spec.md lines 112-118 (the actual "Manage venue presence" AC prose, not the design doc's paraphrase): the 3 listed ACs are (1) edit name/description/address/contact/image, (2) open agenda view, (3) open history view — no AC mentions creating or deleting a venue. The decision is consistent with the spec's actual ACs. ✅ Confirmed, not just taken on the design doc's word.
+
+Note: the requirement-traceability table (spec.md lines 215-216) maps only 2 IDs (ADMIN-13, ADMIN-14) to this 3-AC story — a pre-existing ID/AC-count bookkeeping mismatch in spec.md itself, unrelated to this implementation. Flagged for awareness, not a code gap.
+
+---
+
+## Spec-Anchored Acceptance Criteria
+
+### P2: Manage venue ("Casa de Shows") presence (spec.md lines 112-118)
+
+| Criterion (WHEN X THEN Y) | Spec-defined outcome | `file:line` + assertion expression | Result |
+| -------------------------- | ---------------------- | ------------------------------------ | ------ |
+| AC1: WHEN an organizer edits their venue's name, description, address, contact, or image THEN save the change and reflect it on the venue's public presence | New value persisted and readable immediately after | `tests/Feature/Organizer/VenueControllerTest.php:29-44` (`it_updates_the_organizers_own_venue`) — `$response->assertOk(); $response->assertJsonFragment(['name' => 'New Name']); $this->assertSame('New Name', $venue->fresh()->name); $showResponse->assertJsonFragment(['name' => 'New Name']);` — asserts persistence AND that a subsequent `show` reflects it | ✅ PASS |
+| AC2: WHEN an organizer opens the venue agenda view THEN show the venue's upcoming published events | Only upcoming (`date_time >= now`) AND `published` events returned, excluding drafts and past events | `tests/Feature/Organizer/VenueControllerTest.php:63-82` (`it_shows_only_upcoming_published_events_in_the_agenda`) — seeds an upcoming-published, a draft, and a past-published event; `$response->assertJsonCount(1, 'data'); $response->assertJsonFragment(['title' => 'Upcoming Published']); $this->assertSame($upcomingPublished->id, $response->json('data.0.id'));` — precise, not just "a 200 came back" | ✅ PASS |
+| AC3: WHEN an organizer opens the venue history view THEN show the venue's past (closed or elapsed) events | Events that are `closed` OR `date_time < now`, excluding future published events | `tests/Feature/Organizer/VenueControllerTest.php:86-106` (`it_shows_only_past_or_closed_events_in_the_history`) — seeds a past-published, a closed-but-future, and a future-published event; `$response->assertJsonCount(2, 'data'); assertJsonFragment(['title' => 'Past Published']); assertJsonFragment(['title' => 'Closed Upcoming']); assertJsonMissing(['title' => 'Future Published']);` — both disjunction branches (`Closed` status, elapsed date) independently exercised | ✅ PASS |
+
+**IDOR check** (not a spec AC but a cross-cutting requirement — organizer isolation per Success Criteria): `VenueControllerTest.php:47-59` (`it_denies_updating_another_organizers_venue`) — `$response->assertForbidden(); $this->assertSame('Venue B', $venueB->fresh()->name);` — confirms both the 403 and no side effect. ✅ PASS.
+
+### P2: Manage promoters (spec.md lines 138-151)
+
+| Criterion (WHEN X THEN Y) | Spec-defined outcome | `file:line` + assertion expression | Result |
+| -------------------------- | ---------------------- | ------------------------------------ | ------ |
+| AC1: WHEN an organizer registers a promoter with name, contact phone, email, Instagram link, and TikTok link THEN save the promoter as a record owned by that organizer | New `promoters` row exists with `organizer_id` and the given fields | `tests/Feature/Organizer/PromoterControllerTest.php:28-40` (`it_registers_a_promoter_for_the_organizer`) — `$response->assertCreated(); $this->assertDatabaseHas('promoters', ['organizer_id' => $organizer->id, 'name' => 'DJ Test']);` | ✅ PASS |
+| AC2: WHEN an organizer links a promoter to one of their events THEN make that promoter visible on the event's consumer-facing promoter list | Promoter appears when the event's promoter list is queried | `tests/Feature/Organizer/PromoterControllerTest.php:44-58` (`it_links_a_promoter_to_the_organizers_own_event`) — links, then `GET /organizer/events/{id}/promoters` and asserts `assertJsonFragment(['id' => $promoter->id])` | ⚠️ Spec-precision/scope note — the spec names the "consumer-facing" list explicitly; this admin-panel repo phase only builds and tests the organizer-facing read of the same underlying `event_promoter` join (there is no consumer endpoint in this diff or design.md's Interfaces list for this component — the consumer surface is out of scope for admin-panel per the project's data-owner-first split, built later by web-app/mobile-app reading this same data). The underlying data relationship the consumer view would read from is correctly and precisely tested; the actual consumer-facing rendering is not in this diff to test. |
+| AC3: WHEN an organizer edits or removes a promoter THEN apply the change to every event that promoter is linked to | Edit: all linked events' promoter data reflects the new value. Remove: promoter gone from every linked event's list, but the event itself untouched | Edit: `tests/Feature/Organizer/PromoterControllerTest.php:97-116` (`it_propagates_promoter_edits_to_every_linked_event`) — links promoter to 3 events, updates name, then for each of the 3 events asserts `$listResponse->assertJsonFragment(['name' => 'New Name']);` (all 3, not just one). Remove: `PromoterControllerTest.php:118-134` (`it_removes_a_deleted_promoter_from_events_without_deleting_the_event`) — `assertDatabaseMissing('promoters', ...); assertDatabaseMissing('event_promoter', ...); assertDatabaseHas('events', ['id' => $event->id]);` | ✅ PASS |
+| AC4: WHEN an organizer opens an event's promoter list THEN show every promoter currently linked to that event | All linked promoters returned, none missing | `tests/Feature/Organizer/PromoterControllerTest.php:79-94` (`it_returns_every_promoter_linked_to_an_event`) — attaches 2 promoters, asserts `assertJsonCount(2, 'data')` | ✅ PASS |
+
+**IDOR checks**: `PromoterControllerTest.php:60-77` (`it_denies_linking_across_organizers`) — organizer A's promoter + organizer B's event — `assertForbidden(); assertDatabaseMissing('event_promoter', ...)`, proving the dual (promoter-owner AND event-owner) check in `LinkPromoterRequest::authorize()` actually gates on both sides, not just one. `PromoterControllerTest.php:136-149`/`151-164` cover update/delete ownership denial with 403 + unchanged DB state. All ✅ PASS.
+
+### Edge Case (spec.md line 195)
+
+| Edge Case | Spec-defined outcome | `file:line` + assertion | Result |
+| --------- | ---------------------- | -------------------------- | ------ |
+| WHEN an organizer deletes a promoter that is linked to a **published** event THEN remove the promoter from that event's public list without deleting the event itself | Pivot row gone, promoter row gone, event row untouched — specifically tested against a `published()` event, not an arbitrary one | `tests/Feature/Organizer/PromoterControllerTest.php:118-134` (`it_removes_a_deleted_promoter_from_events_without_deleting_the_event`) — event created via `->published()->create()`; `assertDatabaseMissing('promoters', ['id' => $promoter->id]); assertDatabaseMissing('event_promoter', ['promoter_id' => $promoter->id]); assertDatabaseHas('events', ['id' => $event->id]);` | ✅ PASS |
+
+**Status**: 7/7 literal ACs plus the edge case matched their spec-defined outcome with exact evidence; 1 spec-precision/scope note (AC2, promoter-link visibility tested at the data layer this repo owns, not through an out-of-scope consumer endpoint).
+
+---
+
+## Discrimination Sensor
+
+**Isolation method**: `git worktree add <scratch> HEAD` (real git worktree, never `git stash`). Baseline `git status --porcelain` on the real `api/` tree was empty before any sensor work and confirmed still empty (identical) after `git worktree remove --force <scratch>` + `git worktree prune`. **Methodological note**: the scratch worktree does not contain `vendor/`; a first attempt symlinked `vendor` into the worktree, which silently caused PHP's autoloader to resolve `baseDir` back to the *original* tree (composer's cached absolute-path resolution follows the symlink target), so mutated files in the worktree were never actually loaded and all mutants appeared to "survive." This was caught by manually inspecting the mutated agenda-query result and re-verified as a false negative. Fixed by running Docker with `-v <main-vendor>:<worktree>/vendor -v <worktree>:<worktree>` (bind-mounting vendor directly under the worktree path, not via a host symlink) so `__DIR__`-based path resolution inside composer's autoloader stays rooted in the worktree. Re-ran all 5 mutations under the corrected setup.
+
+| Mutation | File:line | Description | Killed? |
+| -------- | --------- | ------------ | ------- |
+| 1 | `app/Infrastructure/Persistence/Eloquent/EloquentVenueRepository.php:38` | Agenda query's `->where('date_time', '>=', now())` flipped to `'<'` | ✅ Killed — `it_shows_only_upcoming_published_events_in_the_agenda` failed: returned "Past Published" instead of "Upcoming Published" |
+| 2 | `app/Infrastructure/Persistence/Eloquent/EloquentPromoterRepository.php:49` | Removed `$model->events()->detach();` before `$model->delete();` in `delete()` | ✅ Killed — `it_removes_a_deleted_promoter_from_events_without_deleting_the_event` failed with `SQLSTATE[23000]: Integrity constraint violation: 19 FOREIGN KEY constraint failed` |
+| 3 | `app/Infrastructure/Persistence/Eloquent/EloquentVenueRepository.php:37` | Agenda filter's `EventStatus::Published` swapped to `EventStatus::Draft` | ✅ Killed — `it_shows_only_upcoming_published_events_in_the_agenda` failed: returned the "Draft" event instead of "Upcoming Published" |
+| 4 | `app/Presentation/Http/Requests/Organizer/LinkPromoterRequest.php:28-29` | `authorize()` narrowed to check only `PromoterPolicy::owns()`, dropping the `EventPolicy::owns()` half of the dual ownership check | ✅ Killed — `it_denies_linking_across_organizers` failed: expected 403, got 204 (organizer A could link their promoter to organizer B's event) |
+| 5 | `app/Infrastructure/Persistence/Eloquent/EloquentVenueRepository.php:50` | History query's `->orWhere('date_time', '<', now())` flipped to `'>='` | ✅ Killed — `it_shows_only_past_or_closed_events_in_the_history` failed: "Past Published" dropped from history, replaced by "Future Published" |
+
+**Sensor depth**: lightweight (default tier) — 5 targeted behavior-level mutations covering the agenda/history query semantics (both operators and the status filter), the pivot-detach-before-delete FK-integrity requirement, and the dual-ownership IDOR check named in design.md's Layering note.
+**Result**: 5/5 killed — PASS ✅.
+
+---
+
+## Gate Check (MANDATORY, re-run independently — not trusted from tasks.md checkmarks)
+
+All commands re-run fresh via `docker run --rm -v "$PWD":/var/www/html -w /var/www/html php:8.4-cli php artisan test ...` (PHP not installed on host; `vendor/` already present in the checked-out tree).
+
+| Gate command | Result |
+| --- | --- |
+| `php artisan test` (full suite) | ✅ 49 passed (133 assertions), 0 failed, 0 skipped |
+| `vendor/bin/pint --test` | ✅ PASS, 133 files, 0 style violations |
+
+- **Test count before Phase 4** (end of Phase 3, per that section's re-run): 37
+- **Test count after Phase 4**: 49
+- **Delta**: +12 new tests (4 `VenueControllerTest` + 8 `PromoterControllerTest`) — no decrease, no assertions found weakened.
+- **Skipped tests**: none.
+- **Failures**: none.
+
+---
+
+## Clean Architecture (AD-012) / AD-013 Check
+
+Matches design.md's "VenueController, PromoterController" component description (lines 135-142):
+- **Presentation**: `VenueController`/`PromoterController` are thin — delegate to Application use-cases, map entities to response arrays only. `ShowVenueRequest`/`UpdateVenueRequest` resolve the venue server-side from the authenticated organizer (no route param), matching the Layering note's claim that there is no IDOR surface for venue actions "by construction" — confirmed correct: `ShowVenueRequest::venue()` calls `findByOrganizerId((int) $this->user('organizer')->id)`, never a route-bound ID. `LinkPromoterRequest`/`UnlinkPromoterRequest::authorize()` does perform the documented dual (promoter + event) ownership check — confirmed by reading the code and killed by sensor mutation 4.
+- **Application**: `CreatePromoter`, `UpdatePromoter`, `DeletePromoter`, `LinkPromoterToEvent`, `UnlinkPromoterFromEvent`, `GetEventPromoters`, `GetVenueAgenda`, `GetVenueHistory`, `UpdateVenue` — each single-purpose, delegating to the repository contracts only.
+- **Domain**: `VenueRepositoryInterface`, `PromoterRepositoryInterface`, `Domain\Entities\{Venue,Promoter}` — framework-free.
+- **Infrastructure**: `EloquentVenueRepository`/`EloquentPromoterRepository` implement the contracts and map to/from Domain entities via `toEntity()`.
+- **Result**: ✅ Full 4-layer compliance, no deviation. `UpdatePromoter::FIELD_MAP` is a documented, deliberate allowlist (prevents forwarding arbitrary request keys to the repository's `update()`), not scope creep. One class per file confirmed across all 36 changed files, except `UnlinkPromoterRequest extends LinkPromoterRequest` and `DeletePromoterRequest`/`UpdatePromoterRequest`/`ShowEventPromotersRequest` extend shared abstract base request classes — consistent with this codebase's pre-existing `OrganizerOwned*Request` pattern (e.g. Phase 3's `OrganizerOwnedEventRequest`), not a new convention.
+
+---
+
+## Code Quality
+
+| Principle | Status |
+| --------- | ------ |
+| Minimum code (no speculative flexibility) | ✅ — no venue create/delete endpoint built (correctly out of scope, see Scope-Decision Check above); no endpoints beyond T15/T16's literal list |
+| Surgical changes (only files required for task) | ✅ — diff touches only Venue/Promoter Domain/Application/Infrastructure/Presentation files, their tests, `routes/admin-panel.php`, `AppServiceProvider.php` (bindings), and one new factory; nothing pre-existing rewritten |
+| No scope creep | ✅ — no EngagementDashboard/PlanPricing/OrganizerData work leaked in from later phases |
+| Matches existing patterns/style | ✅ — consistent with Phases 1-3's `Eloquent<Entity>Repository`/`<Entity>RepositoryInterface` naming, `OrganizerOwned*Request` base-class pattern, GIVEN/WHEN/THEN `#[TestDox]` convention; `pint --test` clean |
+| Spec-anchored outcome check (asserted values match spec) | ✅ — 7/7 ACs plus the edge case match the spec's precise outcome; 1 documented spec-precision/scope note (AC2) |
+| Per-layer Coverage Expectation met (domain 1:1 ACs; routes happy+edge+error) | ✅ — every route in scope (venue show/update/agenda/history; promoter index/store/update/destroy/link/unlink/eventPromoters) has a happy-path test, and every route requiring ownership enforcement has a 403/edge test |
+| Every test in scope maps to a spec AC, listed edge case, or Done-when criterion (no unclaimed tests) | ✅ — all 12 new tests map directly to ADMIN-13/14/17/18/19's ACs, the promoter-deletion edge case, or T15/T16's literal Done-when IDOR criteria |
+| Documented guidelines followed | design.md Coding Conventions (lines 209-215: no magic strings/numbers, one class per file, YAGNI); tasks.md T15/T16 Done-when |
+
+---
+
+## Requirement Traceability Update
+
+| Requirement | Previous Status | New Status |
+| ----------- | ---------------- | ---------- |
+| ADMIN-13/14 (venue update, agenda, history) | Implementing | ✅ Verified |
+| ADMIN-17 (promoter registration) | Implementing | ✅ Verified |
+| ADMIN-18 (promoter link visible on event list; edit/remove propagation) | Implementing | ✅ Verified (with spec-precision note on AC2's consumer-facing scope, see above) |
+| ADMIN-19 (event promoter list) | Implementing | ✅ Verified |
+
+---
+
+## Summary
+
+**Overall**: ✅ Ready (Phase 4 / T15-T16)
+
+**Spec-anchored check**: 7/7 ACs plus the promoter-deletion edge case matched spec-defined outcomes with exact evidence; 1 spec-precision/scope note (AC2 — organizer-facing data layer tested, consumer-facing rendering is a different feature's scope)
+**Sensor**: 5/5 mutations killed — agenda/history query operators and status filter, promoter pivot-detach-before-delete FK integrity, and the dual-ownership IDOR check on promoter-event linking are all genuinely discriminated by the existing tests
+**Gate**: 49/49 tests passed, 0 failed; `pint --test` clean across 133 files; test count grew 37→49 (+12), no regressions
+
+**What works**: `VenueController` (show/update/agenda/history) and `PromoterController` (CRUD + link/unlink + event-promoter list) are both implemented correctly per code review and proven correct by tests; all 7 spec ACs and the edge case have exact-outcome test coverage; the design doc's venue create/delete scope decision is independently confirmed consistent with spec.md's actual ACs (not taken on the doc's word); the dual-ownership IDOR check on promoter-event linking (the component's one non-standard pattern per design.md's Layering note) is real and is confirmed discriminating by the sensor.
+
+**Issues found**: None blocking. One spec-precision/scope note (AC2's "consumer-facing" wording vs. this repo's organizer-facing test), which reflects an intentional cross-feature scope boundary (admin-panel owns the data; web-app/mobile-app render the consumer view), not a gap in this implementation.
+
+**Next steps**: None required for Phase 4 sign-off.

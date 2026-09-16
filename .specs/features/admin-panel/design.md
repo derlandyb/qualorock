@@ -134,8 +134,12 @@ interface DataExportRequest {
 
 ### VenueController, PromoterController
 
-- **Purpose**: CRUD for venue presence and promoter records, and linking promoters to events (ADMIN-13/14, ADMIN-17..19).
+- **Purpose**: Read/update for venue presence (agenda/history reads) and full CRUD for promoter records plus linking/unlinking promoters to events (ADMIN-13/14, ADMIN-17..19).
 - **Location**: `backend/app/Presentation/Http/Controllers/Organizer/{Venue,Promoter}Controller.php` (Presentation) → `backend/app/Application/UseCases/{Venue,Promoter}/...` (Application) → `backend/app/Domain/Contracts/{Venue,Promoter}RepositoryInterface.php` (Domain) implemented by `backend/app/Infrastructure/Persistence/Eloquent/Eloquent{Venue,Promoter}Repository.php` (Infrastructure)
+- **Interfaces**: `GET/PUT organizer/venue`, `GET organizer/venue/agenda`, `GET organizer/venue/history`, `GET/POST organizer/promoters`, `PUT/DELETE organizer/promoters/{promoter}`, `POST/DELETE organizer/promoters/{promoter}/events/{event}`, `GET organizer/events/{event}/promoters`
+- **Dependencies**: `VenuePolicy`, `PromoterPolicy`, `EventPolicy` (dual-owner check for link/unlink), `EventRepositoryInterface` (venue agenda/history event mapping and event-ownership resolution for promoter linking)
+- **Scope decision**: Venue has no create/delete endpoint. `venues.organizer_id` is DB-unique (1-1 organizer↔venue) and provisioning happens outside this controller (seeder/approval flow); spec ADMIN-13/14 ACs only cover update plus two read views. Building create/delete here would have no spec AC or test scenario driving it (YAGNI, AD-013).
+- **Layering note**: `LinkPromoterRequest`/`UnlinkPromoterRequest::authorize()` checks ownership of both the promoter and the target event (two policy resolutions in one FormRequest), unlike every other `OrganizerOwned*Request` in this codebase which checks a single resource. Venue's `ShowVenueRequest`/`UpdateVenueRequest` resolve the venue server-side from the authenticated organizer rather than a route param, so there is no IDOR surface for venue actions by construction.
 
 ### EngagementDashboardController
 
