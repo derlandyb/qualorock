@@ -500,7 +500,7 @@ T43 -> T44
 
 ---
 
-### T11: EventPolicy (ownership / IDOR guard)
+### T11: EventPolicy (ownership / IDOR guard) ✅
 
 **What**: Laravel Policy checking every event mutation against the authenticated organizer's own `id`, per AD-008's IDOR guardrail.
 **Where**: `backend/app/Application/Policies/EventPolicy.php`
@@ -514,9 +514,9 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] GIVEN organizer A WHEN attempting to update/delete organizer B's event THEN the policy denies it - test passes
-- [ ] GIVEN organizer A WHEN acting on their own event THEN the policy allows it - test passes
-- [ ] Gate check passes: `php artisan test --filter=EventPolicy`
+- [x] GIVEN organizer A WHEN attempting to update/delete organizer B's event THEN the policy denies it - test passes
+- [x] GIVEN organizer A WHEN acting on their own event THEN the policy allows it - test passes
+- [x] Gate check passes: `php artisan test --filter=EventPolicy`
 
 **Tests**: unit
 **Gate**: quick
@@ -525,7 +525,7 @@ T43 -> T44
 
 ---
 
-### T12: PublishedEventCounter service
+### T12: PublishedEventCounter service ✅
 
 **What**: Service counting an organizer's `status -> published` transitions within the current calendar month, using UTC storage and the organizer's configured timezone (default America/Sao_Paulo) for the month boundary, per design.md's Risks table.
 **Where**: `backend/app/Application/Services/PublishedEventCounter.php`
@@ -539,9 +539,9 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] GIVEN 4 events published this calendar month WHEN counting THEN the service returns 4 - test passes
-- [ ] GIVEN an event published in the last minute of the month in America/Sao_Paulo but the next UTC day THEN it counts toward the correct month - test passes (month-boundary edge case)
-- [ ] Gate check passes: `php artisan test --filter=PublishedEventCounter`
+- [x] GIVEN 4 events published this calendar month WHEN counting THEN the service returns 4 - test passes
+- [x] GIVEN an event published in the last minute of the month in America/Sao_Paulo but the next UTC day THEN it counts toward the correct month - test passes (month-boundary edge case)
+- [x] Gate check passes: `php artisan test --filter=PublishedEventCounter`
 
 **Tests**: unit
 **Gate**: quick
@@ -550,7 +550,7 @@ T43 -> T44
 
 ---
 
-### T13: EventController CRUD + status transitions + duplication
+### T13: EventController CRUD + status transitions + duplication ✅
 
 **What**: Create/update/delete an event, an explicit status-transition whitelist (draft->published->cancelled/closed, rejecting invalid transitions with 422), and duplication.
 **Where**: `backend/app/Presentation/Http/Controllers/Organizer/EventController.php`
@@ -564,12 +564,12 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] GIVEN all required fields (image, date/time, location, ticket link, price type) WHEN creating an event THEN it saves as `draft` - test passes
-- [ ] GIVEN a required field is missing WHEN attempting to transition to `published` THEN the request is rejected with the missing fields identified - test passes
-- [ ] GIVEN an invalid transition (e.g. cancelled -> published) THEN the request is rejected with 422 - test passes
-- [ ] GIVEN an organizer deletes their own event THEN it is removed from all consumer-facing listings - test passes
-- [ ] GIVEN an organizer duplicates their own event THEN a new `draft` event is created with the same field values - test passes
-- [ ] Gate check passes: `php artisan test --filter=EventController`
+- [x] GIVEN all required fields (image, date/time, location, ticket link, price type) WHEN creating an event THEN it saves as `draft` - test passes
+- [x] GIVEN a required field is missing WHEN attempting to transition to `published` THEN the request is rejected with the missing fields identified - test passes
+- [x] GIVEN an invalid transition (e.g. cancelled -> published) THEN the request is rejected with 422 - test passes
+- [x] GIVEN an organizer deletes their own event THEN it is removed from all consumer-facing listings - test passes
+- [x] GIVEN an organizer duplicates their own event THEN a new `draft` event is created with the same field values - test passes
+- [x] Gate check passes: `php artisan test --filter=EventController`
 
 **Tests**: integration
 **Gate**: full
@@ -578,7 +578,7 @@ T43 -> T44
 
 ---
 
-### T14: Wire Basic-tier 4-events/month cap into publish transition
+### T14: Wire Basic-tier 4-events/month cap into publish transition ✅
 
 **What**: Block a 5th `published` transition within a calendar month for `planTier === "basic"` organizers, returning 422 with an `upgrade_required` error code, using `PublishedEventCounter` from T12.
 **Where**: `backend/app/Presentation/Http/Controllers/Organizer/EventController.php`
@@ -592,9 +592,9 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] GIVEN a Basic-tier organizer with 4 published events this month WHEN publishing a 5th THEN the response is 422 with `upgrade_required` - test passes
-- [ ] GIVEN a Plus-tier organizer with 4+ published events this month WHEN publishing another THEN it succeeds - test passes
-- [ ] Gate check passes: `php artisan test --filter=EventCap`
+- [x] GIVEN a Basic-tier organizer with 4 published events this month WHEN publishing a 5th THEN the response is 422 with `upgrade_required` - test passes
+- [x] GIVEN a Plus-tier organizer with 4+ published events this month WHEN publishing another THEN it succeeds - test passes
+- [x] Gate check passes: `php artisan test --filter=EventCap`
 
 **Tests**: integration
 **Gate**: full

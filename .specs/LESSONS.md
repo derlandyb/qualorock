@@ -32,6 +32,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: ADMIN-01 (spec.md line 60; validation.md Phase 2 Finding 2) (admin-panel)
 - last seen: 2026-09-16T19:45:14Z
 
+### L-004 - When asserting duplicate/copy field-equivalence, enumerate every field the copy use-case actually assigns (check the constructor call, not the test's own list) - it's easy to strengthen a duplicate test with most fields and still miss one or two (e.g. dateTime, priceType).
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `tests/Feature` · harmful: 0
+- features: admin-panel
+- evidence: AC3 / tests/Feature/Organizer/EventControllerTest.php:206-249 (tests/Feature)
+- last seen: 2026-09-16T22:20:17Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

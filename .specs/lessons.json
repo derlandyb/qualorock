@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 4,
+  "next_id": 5,
   "lessons": [
     {
       "id": "L-001",
@@ -58,6 +58,24 @@
       ],
       "created": "2026-09-16T19:45:14Z",
       "last_seen": "2026-09-16T19:45:14Z"
+    },
+    {
+      "id": "L-004",
+      "key": "spec_precision_gap::when asserting duplicate copy field equivalence enumerate every field the copy use case actually assigns check the constructor call not the test s own list it s easy to strengthen a duplicate test with most fields and still miss one or two e g datetime pricetype",
+      "text": "When asserting duplicate/copy field-equivalence, enumerate every field the copy use-case actually assigns (check the constructor call, not the test's own list) - it's easy to strengthen a duplicate test with most fields and still miss one or two (e.g. dateTime, priceType).",
+      "signal": "spec_precision_gap",
+      "scope": "tests/Feature",
+      "status": "candidate",
+      "features": [
+        "admin-panel"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "AC3 / tests/Feature/Organizer/EventControllerTest.php:206-249 (tests/Feature)"
+      ],
+      "created": "2026-09-16T22:20:17Z",
+      "last_seen": "2026-09-16T22:20:17Z"
     }
   ]
 }

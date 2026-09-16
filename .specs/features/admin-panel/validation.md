@@ -384,3 +384,226 @@ Spec.md doesn't enumerate which fields constitute "the signup details they submi
 2. Finding 2 (cosmetic): ADMIN-01's "signup details" isn't spec-precise; implementation covers more fields than the test asserts, no functional gap.
 
 **Next steps**: Neither finding blocks Phase 2 sign-off or Phase 3 starting. Recommend adding an `AuthController`/`LoginOrganizer` design.md component entry whenever admin-panel's design.md is next revisited, to close the doc gap AD-014 implies every component should have.
+
+---
+---
+
+## Validation: admin-panel Phase 3 (T11-T14) - PASS ✅ (after re-verification, see "Re-verification (iteration 2)" below)
+
+# Admin Panel Validation — Phase 3 (T11–T14: EventPolicy, PublishedEventCounter, EventController CRUD, Basic-tier cap)
+
+**Date**: 2026-09-16
+**Spec**: `.specs/features/admin-panel/spec.md` ("P1: Register and manage events", lines 70-87), `.specs/features/admin-panel/design.md` (Components: "EventController / EventPolicy", lines 127-132; Error Handling Strategy, lines 169-177; Risks & Concerns, lines 181-189), `.specs/features/admin-panel/tasks.md` (T11-T14, lines 503-602)
+**Scope**: Phase 3 only — T11 (`EventPolicy`), T12 (`PublishedEventCounter`), T13 (`EventController` CRUD + status transitions + duplication), T14 (Basic-tier 4-events/month publish cap). Phases 1-2 (above) already verified; Phases 4-15 not started.
+**Diff range**: `api` repo, `main..HEAD` on `feat/admin-panel-phase-3-event-crud`:
+```
+26a0169 feat(admin-panel): add EventPolicy for ownership/IDOR enforcement
+170a644 feat(admin-panel): add PublishedEventCounter service
+00b68fa feat(admin-panel): add EventController CRUD and status transitions
+21c940e feat(admin-panel): enforce Basic-tier 4-events/month publish cap
+```
+**Verifier**: independent sub-agent (author ≠ verifier) — no prior "done" claim trusted; all evidence re-derived from the diff, tests, and live gate/sensor runs.
+
+---
+
+## Task Completion
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| T11  | ✅ Done | `EventPolicy::owns()` correctly checks `$user instanceof Organizer && $user->id === $event->organizerId`; all 3 Done-when tests present and pass (`tests/Unit/Policies/EventPolicyTest.php`) |
+| T12  | ✅ Done | `PublishedEventCounter` correctly converts to `AdminPanelConstants::DEFAULT_ORGANIZER_TIMEZONE` before computing `startOfMonth()/endOfMonth()`, then queries in UTC — both Done-when tests present and pass, including the month-boundary edge case |
+| T13  | ⚠️ Done with gaps | CRUD/duplication implemented correctly; 2 of 6 literal Done-when criteria have no Feature-level (HTTP) test evidence — see Findings 1 and the AC5/AC6 rows below |
+| T14  | ✅ Done | Cap correctly wired into `TransitionEventStatus::hasReachedBasicTierPublishCap()`, `>=` comparison against `AdminPanelConstants::BASIC_TIER_MONTHLY_PUBLISH_LIMIT` (4); both Done-when tests present and pass |
+
+---
+
+## Spec-Anchored Acceptance Criteria ("P1: Register and manage events", spec.md lines 76-87)
+
+| Criterion (WHEN X THEN Y) | Spec-defined outcome | `file:line` + assertion expression | Result |
+| -------------------------- | ---------------------- | ------------------------------------ | ------ |
+| AC1: WHEN an approved organizer submits a new event with the required fields THEN create it in `draft` status | New `events` row exists with `status = draft` | `tests/Feature/Organizer/EventControllerTest.php:31-46` — `$response->assertJsonFragment(['status' => 'draft']); $this->assertDatabaseHas('events', ['organizer_id' => ..., 'venue_id' => ..., 'status' => 'draft']);` | ✅ PASS |
+| AC2: WHEN an organizer edits their own event THEN save the changes and apply them immediately | Field's new value is persisted and readable right after the request | `tests/Feature/Organizer/EventControllerTest.php:49-60` — `$response->assertOk(); $this->assertSame('New Title', $event->fresh()->title);` | ✅ PASS |
+| AC3: WHEN an organizer duplicates their own event THEN create a new `draft` copy with the same field values, excluding engagement stats | The duplicate's fields equal the original's fields (all of them), status forced to `draft` | `tests/Feature/Organizer/EventControllerTest.php:104-117` — asserts only `title` and `status` via `assertJsonFragment(['title' => 'Original', 'status' => 'draft'])` and `assertDatabaseCount('events', 2)` | ⚠️ Spec-precision gap — the test does not assert equality of the other 13 duplicated fields (description, dateTime, location, fullAddress, featuredImageUrl, externalTicketLink, priceType, musicCategory, capacity, ageRange, additionalInfo, accessibilityInfo, eventRules) that `App\Application\UseCases\Event\DuplicateEvent::handle()` (`app/Application/UseCases/Event/DuplicateEvent.php:17-38`) does copy 1:1 in the implementation — code review confirms the implementation is correct, but the test would not catch a regression that dropped or mismapped any of those 13 fields |
+| AC4: WHEN an organizer deletes their own event THEN remove it from all consumer-facing listings | The event row no longer exists / cannot be returned by any listing query | `tests/Feature/Organizer/EventControllerTest.php:90-102` — `$response->assertNoContent(); $this->assertDatabaseMissing('events', ['id' => $event->id]);` | ✅ PASS |
+| AC5: WHEN an organizer changes an event's status THEN accept only draft→published, published→cancelled, published→closed, draft→cancelled, and reject any other transition | All 4 whitelisted transitions succeed; any non-whitelisted transition is rejected | Domain rule matches exactly: `app/Domain/Entities/Event.php:33-40`. Tested sub-cases: draft→published (implicit happy path, `EventControllerTest.php:31-46` and `EventCapTest.php`), cancelled→published rejected (`EventControllerTest.php:76-88`, `TransitionEventStatusTest.php:38-50`). **No test anywhere in the diff exercises published→cancelled, published→closed, or draft→cancelled** (confirmed via `grep -rn "closed\|Closed\|cancelled\|Cancelled" tests/` — only the two cases above appear) | ❌ GAP — 3 of the 4 whitelisted transitions have zero test evidence (evidence-or-zero); only 1 of the many possible invalid transitions is tested |
+| AC6: IF an organizer attempts to edit or delete an event they don't own THEN deny the action | 403 on both edit and delete for a non-owner | Edit: `tests/Feature/Organizer/EventControllerTest.php:62-74` — `$response->assertForbidden();`. Delete: **no Feature-level test exists** — `EventControllerTest.php` has no `it_denies_deleting_another_organizers_event` (or equivalent) case; confirmed absent by reading the full file | ❌ GAP — "delete" half of AC6 has no HTTP-level test evidence. (`DeleteEventRequest extends OrganizerOwnedEventRequest`, `app/Presentation/Http/Requests/Organizer/DeleteEventRequest.php:5`, so it does share the same `authorize()`/`EventPolicy::owns()` check as update — code review suggests it works — but the AC is untested end-to-end for delete specifically) |
+| AC7: IF a Basic-tier organizer attempts to transition a 5th event to `published` within the same calendar month THEN block the transition and identify the Plus-tier upgrade | 422 response identifying the upgrade path | `tests/Feature/Organizer/EventCapTest.php:29-42` — `$response->assertStatus(422); $response->assertJsonFragment(['error' => 'upgrade_required']);` | ✅ PASS |
+
+**Status**: ❌ Gaps present — 4/7 ACs fully covered with exact-outcome evidence, 1 spec-precision gap (AC3), 2 real coverage gaps (AC5, AC6) where a documented sub-case has no test evidence at all.
+
+---
+
+## Edge Cases (spec.md lines 189-195, in scope for Phase 3)
+
+- [x] "IF an organizer tries to publish an event missing a required field ... THEN the system SHALL block the status transition to `published` and identify the missing fields" — covered at the **Unit** level only: `tests/Unit/UseCases/Event/TransitionEventStatusTest.php:22-36` (`it_rejects_publishing_an_event_with_missing_required_fields`) asserts `$exception->missingFields === ['featuredImageUrl']`. **No Feature/HTTP-level test** asserts the controller's actual JSON shape (`{"error": "missing_required_fields", "missingFields": [...]}` per `EventController.php:70-74`) — flagged as a minor gap below (Finding 2), since the mapping from exception → HTTP response is itself untested.
+- [ ] "WHEN an organizer deletes a promoter linked to a published event THEN remove the promoter from that event's public list without deleting the event" — N/A for this phase (Promoter/EventPromoter not yet built; correctly out of scope for T11-T14).
+
+---
+
+## Discrimination Sensor
+
+**Isolation method**: `git worktree add /tmp/verify-scratch HEAD` (a real git worktree, not a copy or stash). Baseline `git status --porcelain` on the real `api/` tree was captured and confirmed empty (clean) before any sensor work, and re-confirmed identical (still empty) after the worktree was removed via `git worktree remove --force /tmp/verify-scratch` — no `git stash` used at any point.
+
+| Mutation | File:line | Description | Killed? |
+| -------- | --------- | ------------ | ------- |
+| 1 | `app/Application/Policies/EventPolicy.php:13` | `owns()` changed from `return $user instanceof Organizer && $user->id === $event->organizerId;` to `return true;` | ✅ Killed — `EventPolicyTest::it_denies_when_there_is_no_authenticated_organizer` failed (`assertFalse` got `true`); `EventControllerTest::it_denies_updating_another_organizers_event` failed (expected 403, got 200) |
+| 2 | `app/Application/UseCases/Event/TransitionEventStatus.php:49` | Basic-tier cap comparison changed from `>= AdminPanelConstants::BASIC_TIER_MONTHLY_PUBLISH_LIMIT` to `> AdminPanelConstants::BASIC_TIER_MONTHLY_PUBLISH_LIMIT` | ✅ Killed — `EventCapTest::it_blocks_a_fifth_publish_for_a_basic_tier_organizer` failed (expected 422, got 200) |
+| 3 | `app/Domain/Entities/Event.php:38` | `canTransitionTo()`'s `default => false` (reject any status not `Draft`/`Published`) changed to `default => true` | ✅ Killed — `TransitionEventStatusTest::it_rejects_an_invalid_status_transition` failed (expected exception, none thrown); `EventControllerTest::it_rejects_an_invalid_status_transition` failed (expected 422, got 200) |
+
+**Sensor depth**: lightweight (default tier) — 3 targeted behavior-level mutations covering the two highest-risk new rules (IDOR ownership check, Basic-tier cap boundary) plus the transition whitelist's fallback branch.
+**Result**: 3/3 killed — PASS ✅. Note: mutation 3 targeted the entity's `default` branch (which both `Draft`/`Published`'s explicit whitelists rely on for rejecting out-of-list targets); it does not by itself prove `published→cancelled`/`published→closed`/`draft→cancelled` are individually exercised — see AC5's coverage gap above, which the sensor's kill does not close.
+
+---
+
+## Gate Check (MANDATORY, re-run independently — not trusted from tasks.md checkmarks)
+
+All commands re-run fresh via `docker run --rm -v "$(pwd):/var/www/html" -w /var/www/html php:8.4-cli-alpine ...` (PHP is not installed on the host; `vendor/` was already present in the checked-out tree).
+
+| Gate command | Result |
+| --- | --- |
+| `php artisan test` (full suite) | ✅ 30 passed (66 assertions), 0 failed, 0 skipped |
+| `vendor/bin/pint --test` | ✅ PASS, 102 files, 0 style violations |
+
+- **Test count before Phase 3** (re-derived independently, not from STATE.md): 14 — measured by checking out `main` (`b4a8a97`) into a separate worktree (`/tmp/verify-scratch-main`), copying `vendor/`, generating a fresh `.env`/app key, and running `php artisan test`: `14 passed (38 assertions)`.
+- **Test count after Phase 3**: 30
+- **Delta**: +16 new tests (3 `EventPolicyTest` + 2 `PublishedEventCounterTest` + 3 `TransitionEventStatusTest` + 6 `EventControllerTest` + 2 `EventCapTest`) — no decrease, no assertions found weakened.
+- **Skipped tests**: none.
+- **Failures**: none.
+
+---
+
+## Clean Architecture (AD-012) / AD-013 Check
+
+Matches design.md's `EventController / EventPolicy` component description (lines 127-132) closely:
+- **Presentation**: `app/Presentation/Http/Controllers/Organizer/EventController.php` — thin, delegates to 5 Application use-cases only; the 3 `catch` blocks map Domain exceptions to HTTP status/error-code, no business logic. `app/Presentation/Http/Requests/Organizer/*.php` — validation + `EventPolicy` authorization only.
+- **Application**: `app/Application/UseCases/Event/{CreateEvent,UpdateEvent,DeleteEvent,DuplicateEvent,TransitionEventStatus}.php` + `app/Application/Policies/EventPolicy.php` + `app/Application/Services/PublishedEventCounter.php` — each single-purpose, orchestrating via `EventRepositoryInterface`.
+- **Domain**: `app/Domain/Entities/Event.php` (status-transition whitelist + `missingFieldsForPublish()` as pure rules, no framework dependency), `app/Domain/Contracts/EventRepositoryInterface.php`, 3 new `Domain/Exceptions/*.php`.
+- **Infrastructure**: `app/Infrastructure/Persistence/Eloquent/EloquentEventRepository.php` implements the contract, maps to/from the Domain entity via `toEntity()`; `countPublishedBetween()` correctly queries in UTC per the Risks table's mitigation (`PublishedEventCounter` converts to `America/Sao_Paulo` before computing month bounds, then `.utc()` before querying — `app/Application/Services/PublishedEventCounter.php:18-23`).
+- **Result**: ✅ Full 4-layer compliance, no deviation. No magic numbers: the cap (`4`) and timezone default are named constants in `AdminPanelConstants` (`app/Domain/Constants/AdminPanelConstants.php:13,15`), not inlined. One class per file confirmed across all 33 changed files.
+
+---
+
+## Findings
+
+### Finding 1 — AC5's status-transition matrix is only 2/4-plus-1 tested (Major)
+
+`app/Domain/Entities/Event.php:33-40` correctly whitelists exactly the 4 transitions spec.md AC5 names (draft→published, draft→cancelled, published→cancelled, published→closed) and rejects everything else via `default => false` — confirmed correct by code review and by the discrimination sensor killing a mutation of that fallback branch. However, only draft→published (happy path) and cancelled→published (one invalid case) have any test evidence; published→cancelled, published→closed, and draft→cancelled have **none** — no unit test on the entity's `canTransitionTo()`, no Feature test posting `{"status": "cancelled"}` against a `published` event, etc.
+
+- **Severity**: Major — this is the core rule T13/T14 exist to enforce; three of its four positive cases are unverified by any test, so a future regression to any of them (e.g. someone tightens `Published => [Cancelled]` and silently drops `Closed`) would not be caught.
+- **Recommendation**: Add a unit test on `Event::canTransitionTo()` (or Feature tests against `POST /organizer/events/{id}/status`) for `published→cancelled`, `published→closed`, and `draft→cancelled` succeeding, and for at least one more invalid case (e.g. `closed→published`) being rejected.
+
+### Finding 2 — AC6's delete-ownership case has no Feature-level test (Minor)
+
+`app/Presentation/Http/Requests/Organizer/DeleteEventRequest.php` extends `OrganizerOwnedEventRequest`, so it shares the same `authorize()` → `EventPolicy::owns()` gate as `UpdateEventRequest` (tested) — code review indicates it works correctly. But `tests/Feature/Organizer/EventControllerTest.php` has no test asserting 403 when organizer A tries to `DELETE /organizer/events/{organizer B's event}`.
+
+- **Severity**: Minor — the underlying policy is unit-tested generically (`EventPolicyTest`) and shared by construction (same abstract base class), so the residual risk is low, but AC6 literally names both "edit or delete" and only "edit" has end-to-end evidence.
+- **Recommendation**: Add `it_denies_deleting_another_organizers_event` (and, while at it, the same for `duplicate`/`status` — both also extend `OrganizerOwnedEventRequest` and are equally untested for the ownership-denial case at Feature level).
+
+### Finding 3 — Missing-required-fields HTTP response shape untested (Minor)
+
+The domain rule (`Event::missingFieldsForPublish()`) and the use-case's exception-throwing are unit-tested (`TransitionEventStatusTest.php:22-36`), but the controller's mapping of that exception to `{"error": "missing_required_fields", "missingFields": [...]}` (`EventController.php:70-74`) has no Feature-level test exercising it through the real HTTP route.
+
+- **Severity**: Minor — low risk since the mapping is a single straightforward `catch` block, but per this feature's own Test Coverage Matrix ("routes/e2e cover happy + edge + error paths for every route in scope"), this is an error path of the `status` route that is not exercised end-to-end.
+- **Recommendation**: Add a Feature test posting to `/organizer/events/{id}/status` with `status: published` against an event missing a required field, asserting the full JSON error shape.
+
+### Finding 4 — AC3's duplicate assertion doesn't verify full field equivalence (Minor, spec-precision)
+
+See AC3 row above. `DuplicateEvent::handle()` (`app/Application/UseCases/Event/DuplicateEvent.php:17-38`) correctly copies all 15 fields, but `EventControllerTest::it_duplicates_an_organizers_own_event` only asserts `title` and `status` match — a regression that dropped or mis-set any other field (e.g. `capacity`, `musicCategory`) would not be caught.
+
+- **Severity**: Minor — implementation confirmed correct by code review; this is a test-strength gap, not a functional bug.
+- **Recommendation**: Strengthen the assertion to compare the duplicate's full field set against the original (e.g. assert equality on every field except `id`/`status`/`publishedAt`).
+
+---
+
+## Code Quality
+
+| Principle | Status |
+| --------- | ------ |
+| Minimum code (no speculative flexibility) | ✅ — no endpoints/use-cases beyond T11-T14's literal scope |
+| Surgical changes (only files required for task) | ✅ — `git diff --stat main..HEAD` touches only Event-related Domain/Application/Infrastructure/Presentation files, their tests, `routes/admin-panel.php`, `AppServiceProvider.php` (binding), and the two new factories; nothing pre-existing rewritten |
+| No scope creep | ✅ — no Venue/Promoter/Dashboard work leaked in from later phases |
+| Matches existing patterns/style | ✅ — consistent with Phase 1/2's `Eloquent<Entity>Repository`/`<Entity>RepositoryInterface` naming, GIVEN/WHEN/THEN `#[TestDox]` convention, `pint --test` clean |
+| Spec-anchored outcome check (asserted values match spec) | ⚠️ — 4/7 ACs fully match; AC3 asserts a subset of the spec's "same field values"; AC5/AC6 have real coverage gaps (see Findings 1-2) |
+| Per-layer Coverage Expectation met (domain 1:1 ACs; routes happy+edge+error) | ❌ — the `status` route's error path (missing fields) and the `delete`/`duplicate`/`status` routes' ownership-denial path are not covered at the Feature/route level (Findings 1-3) |
+| Every test in scope maps to a spec AC, listed edge case, or Done-when criterion (no unclaimed tests) | ✅ — all 16 new tests map to ADMIN-06..10/ADMIN-28 or the missing-required-fields edge case; none found testing unrequested behavior |
+| Documented guidelines followed | tasks.md Coding Conventions (lines 204-211), design.md Risks & Concerns (timezone handling, lines 181-189) |
+
+---
+
+## Requirement Traceability Update
+
+| Requirement | Previous Status | New Status |
+| ----------- | ---------------- | ---------- |
+| ADMIN-06 (create event as draft) | Implementing | ✅ Verified |
+| ADMIN-07 (edit own event) | Implementing | ✅ Verified |
+| ADMIN-08 (duplicate) | Implementing | ⚠️ Verified with gap (Finding 4) |
+| ADMIN-09 (delete) | Implementing | ✅ Verified |
+| ADMIN-10 (ownership enforcement) | Implementing | ⚠️ Verified with gap (Finding 2 — delete/duplicate/status ownership paths untested at Feature level) |
+| ADMIN-28 (Basic-tier cap + status transitions) | Implementing | ⚠️ Verified with gap (Finding 1 — 3 of 4 whitelisted transitions untested) |
+
+---
+
+## Summary
+
+**Overall**: ❌ Not Ready (Phase 3 / T11-T14)
+
+**Spec-anchored check**: 4/7 ACs matched spec outcome cleanly; 1 spec-precision gap (AC3); 2 real coverage gaps with zero test evidence for a named sub-case (AC5, AC6)
+**Sensor**: 3/3 mutations killed (IDOR bypass, cap boundary, transition-whitelist fallback) — the tests that do exist are genuinely discriminating for what they cover
+**Gate**: 30/30 tests passed, 0 failed; `pint --test` clean across 102 files; test count grew 14→30 (+16), no regressions
+
+**What works**: `EventPolicy`, `PublishedEventCounter` (including the month-boundary timezone edge case from design.md's Risks table), event create/update/delete/duplicate, the transition whitelist's rejection logic, and the Basic-tier cap are all implemented correctly per code review and are proven correct by tests where tests exist; all 3 injected mutations were caught, confirming those tests are not superficial.
+
+**Issues found**:
+1. Finding 1 (Major): AC5's status-transition whitelist — only 2 of 4 valid transitions and 1 invalid case are tested; `published→cancelled`, `published→closed`, `draft→cancelled` have zero test evidence.
+2. Finding 2 (Minor): AC6's ownership-denial is untested at Feature level for `delete`/`duplicate`/`status` (only `update` is tested end-to-end).
+3. Finding 3 (Minor): the missing-required-fields error path is untested through the actual HTTP route (only unit-tested).
+4. Finding 4 (Minor): AC3's duplicate test doesn't verify full field equivalence, only `title`/`status`.
+
+**Next steps**: Route Findings 1-4 as fix tasks (add the missing transition tests, the missing ownership-denial tests, the missing HTTP-level error-path test, and strengthen the duplicate-field assertion) before Phase 3 sign-off. None require an implementation change — code review found the underlying logic correct in all four cases; these are test-coverage gaps, not functional bugs.
+
+---
+
+### Re-verification (iteration 2)
+
+**Date**: 2026-09-16
+**Diff added**: `c017ff3` — "test(admin-panel): close Phase 3 verifier coverage gaps" (`tests/Feature/Organizer/EventControllerTest.php`, +134/-2, 7 new test methods; no non-test files touched)
+**Verifier**: independent sub-agent (fresh review; did not author `c017ff3`)
+
+**Gap-by-gap re-check** (evidence-or-zero, re-derived independently from `git show c017ff3`, not trusted from the commit message):
+
+| # | Original gap | Status | Evidence |
+| - | ------------- | ------ | -------- |
+| 1 | AC5: `published→cancelled`, `published→closed`, `draft→cancelled` had zero test evidence (Major) | ✅ Closed | `tests/Feature/Organizer/EventControllerTest.php:90-102` `it_allows_transitioning_a_published_event_to_cancelled` — `$response->assertOk(); $response->assertJsonFragment(['status' => 'cancelled']);`; `:104-116` `it_allows_transitioning_a_published_event_to_closed` — `assertOk()` + `assertJsonFragment(['status' => 'closed'])`; `:118-130` `it_allows_transitioning_a_draft_event_to_cancelled` — `assertOk()` + `assertJsonFragment(['status' => 'cancelled'])`. All 4 whitelisted transitions from spec.md AC5 now have exact-outcome HTTP evidence. Confirmed discriminating: sensor mutation 4 below (removing `Closed` from `Published`'s allowed targets in `app/Domain/Entities/Event.php:37`) fails exactly `it_allows_transitioning_a_published_event_to_closed` (expected 200, got 422) and no other test. |
+| 2 | AC6: ownership-denial (403) untested at Feature level for `delete`/`duplicate`/`status` (Minor) | ✅ Closed | `EventControllerTest.php:147-160` `it_denies_deleting_another_organizers_event` — `$response->assertForbidden(); $this->assertDatabaseHas('events', ['id' => $event->id]);`; `:162-175` `it_denies_duplicating_another_organizers_event` — `assertForbidden()` + `assertDatabaseCount('events', 1)`; `:177-190` `it_denies_transitioning_another_organizers_event_status` — `assertForbidden()` + `assertSame('draft', $event->fresh()->status->value)`. All 3 previously-untested routes now assert both the 403 and that the denied action had no side effect. Confirmed discriminating: sensor mutation 5 below (bypassing `OrganizerOwnedEventRequest::authorize()`) fails all 3 of these plus the pre-existing `update` ownership test. |
+| 3 | `missing_required_fields` error response untested through the real HTTP route (Minor) | ✅ Closed | `EventControllerTest.php:132-145` `it_rejects_publishing_an_event_with_a_missing_required_field_over_http` — `$response->assertStatus(422); $response->assertJsonFragment(['error' => 'missing_required_fields']); $response->assertJsonFragment(['missingFields' => ['location']]);`. Exercises the real `POST /organizer/events/{id}/status` route end-to-end, asserting the full JSON error shape `EventController.php:70-74` produces (not just the underlying exception, which was already unit-tested). |
+| 4 | AC3's duplicate test only asserted `title`/`status`, not full field equivalence across all 14 copied fields (Minor, spec-precision) | ⚠️ Partially closed | `EventControllerTest.php:206-249` `it_duplicates_an_organizers_own_event` now sets 12 distinguishing values on the original (`title`, `description`, `location`, `full_address`, `featured_image_url`, `external_ticket_link`, `music_category`, `capacity`, `age_range`, `additional_info`, `accessibility_info`, `event_rules`) plus a real `venue_id`, and asserts all of them (`venueId`, `title`, `description`, `location`, `fullAddress`, `featuredImageUrl`, `externalTicketLink`, `musicCategory`, `capacity`, `ageRange`, `additionalInfo`, `accessibilityInfo`, `eventRules`) plus the forced `status`/`publishedAt` on the response — 13 of the 15 non-forced fields `DuplicateEvent::handle()` copies (`app/Application/UseCases/Event/DuplicateEvent.php:17-38`) are now verified, up from 2 (`title`, `status`). **Two fields remain unverified**: `dateTime` and `priceType` are copied by `DuplicateEvent::handle()` (lines 23, 28) but never overridden on the factory-built original nor asserted in the response fragment — a regression that dropped or mismapped either of those two specific fields would still not be caught by this test. |
+
+**Discrimination sensor (targeted at the new coverage)**: isolated `git worktree add /tmp/verify-scratch-2 HEAD` at `c017ff3` (`vendor/` and `.env` copied in for the container run; never `git stash`). Baseline `git status --porcelain` on the real `api/` tree was empty before sensor work and confirmed still empty (identical) after `git worktree remove --force /tmp/verify-scratch-2`.
+
+| Mutation | File:line | Description | Killed? |
+| -------- | --------- | ------------ | ------- |
+| 4 | `app/Domain/Entities/Event.php:37` | `Published`'s allowed targets narrowed from `[Cancelled, Closed]` to `[Cancelled]` (i.e. `published→closed` silently starts being rejected) | ✅ Killed — only `it_allows_transitioning_a_published_event_to_closed` failed (expected 200, got 422); the other 12 `EventControllerTest` cases still passed, confirming the new test is precisely targeting this transition and not redundant with existing ones |
+| 5 | `app/Presentation/Http/Requests/Organizer/OrganizerOwnedEventRequest.php:18` | `authorize()` changed from `$event !== null && app(EventPolicy::class)->owns(...)` to `return true;` (ownership check bypassed for all 4 routes sharing this base request) | ✅ Killed — `it_denies_updating_another_organizers_event`, `it_denies_deleting_another_organizers_event`, `it_denies_duplicating_another_organizers_event`, and `it_denies_transitioning_another_organizers_event_status` all failed (expected 403, got 200/201); 9 of 13 `EventControllerTest` cases still passed |
+
+**Sensor depth**: lightweight, 2 additional targeted mutations (bringing the feature's cumulative sensor total to 5/5 killed across both iterations).
+
+**Gate re-run** (fresh, via `docker run --rm -v "$(pwd):/var/www/html" -w /var/www/html php:8.4-cli-alpine ...`):
+
+| Gate command | Result |
+| --- | --- |
+| `php artisan test` (full suite) | ✅ 37 passed (94 assertions), 0 failed, 0 skipped |
+| `vendor/bin/pint --test` | ✅ PASS, 102 files, 0 style violations |
+
+- **Test count iteration 1 → iteration 2**: 30 → 37 (+7, matching the 7 new `#[Test]` methods in `c017ff3`); assertions 66 → 94. No decrease, no weakened assertions found.
+
+**Updated Spec-Anchored Acceptance Criteria** (supersedes the iteration-1 AC5/AC6/AC3 rows above):
+
+| Criterion | Result |
+| --------- | ------ |
+| AC5 (status-transition matrix) | ✅ PASS — all 4 whitelisted transitions now have exact-outcome HTTP evidence |
+| AC6 (ownership denial on edit/delete) | ✅ PASS — edit, delete, duplicate, and status-transition ownership denial all have exact-outcome HTTP evidence (duplicate/status weren't literally named by AC6's "edit or delete" wording but share the same enforcement mechanism and route family, so their added coverage strengthens confidence without being required by AC6 itself) |
+| AC3 (duplicate field equivalence) | ⚠️ Spec-precision gap (narrowed) — 13/15 non-forced fields now verified; `dateTime` and `priceType` still unverified |
+
+**Overall verdict**: ✅ **PASS** — Findings 1-3 (the Major AC5 gap and the two Minor gaps on ownership-denial and the missing-required-fields HTTP path) are fully closed with exact-outcome test evidence and confirmed discriminating by fresh sensor mutations. Finding 4 is substantially narrowed (from 2/15 to 13/15 fields verified) but not fully closed — `dateTime`/`priceType` remain unasserted in the duplicate test. This residual is Minor/spec-precision, the underlying implementation was already confirmed correct by code review in iteration 1, and it does not gate sign-off; it is carried forward as a non-blocking follow-up rather than routed through another fix→re-verify cycle.
+
+**Non-blocking follow-up**: Strengthen `EventControllerTest::it_duplicates_an_organizers_own_event` to also set and assert `dateTime` and `priceType` on the original/duplicate, closing Finding 4 completely.
