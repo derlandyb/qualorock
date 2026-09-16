@@ -1,10 +1,18 @@
 .PHONY: up down logs ps build test-e2e seed mobile-android mobile-ios
 
-# Bring up every default-profile containerized service (backend, reverb,
-# postgres, minio, mailhog, pgadmin, web-app, admin-panel, landing-page-plans).
-# Never starts playwright - that lives under the "test" profile only.
-up:
+# Build every containerized service's image, bring up every default-profile
+# service (backend, reverb, postgres, minio, mailhog, pgadmin, web-app,
+# admin-panel, landing-page-plans), seed the database, then build/launch the
+# mobile apps on the host. Never starts playwright - that lives under the
+# "test" profile only. The mobile-android/mobile-ios steps are best-effort
+# ("-" prefix): a missing host toolchain (Xcode, Android SDK) or missing
+# mobile/ submodule prints its existing fail-fast error but does not abort
+# the rest of `make up`.
+up: build
 	docker compose up -d --wait
+	$(MAKE) seed
+	-$(MAKE) mobile-android
+	-$(MAKE) mobile-ios
 
 down:
 	docker compose down

@@ -50,8 +50,13 @@ hanging or crashing unclearly.
 
 Everything else - `backend`, `reverb`, `postgres`, `minio`, `mailhog`,
 `pgadmin`, `web-app`, `admin-panel`, `landing-page-plans` - comes up with a
-single `make up` (`docker compose up -d --wait`), with no manual PHP,
-Postgres, or Node setup required on the host for any of those.
+single `make up`, with no manual PHP, Postgres, or Node setup required on the
+host for any of those. `make up` chains `build` (every containerized
+service's image), `docker compose up -d --wait` (all default-profile
+services), `make seed`, and best-effort `mobile-android`/`mobile-ios` - the
+mobile steps are prefixed `-` in the Makefile so a missing host toolchain or
+missing `mobile/` submodule prints that target's fail-fast error without
+aborting the rest of `make up`.
 
 ## Playwright test-only profile
 

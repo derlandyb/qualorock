@@ -334,7 +334,9 @@ T12 -> T13
 
 ### T9: Add root Makefile (up/down/logs/ps/build/test-e2e/mobile-android/mobile-ios)
 
-**What**: Root `Makefile` wrapping the compose commands so no developer needs to know the raw invocation: `up` (`docker compose up -d --wait` - every default-profile service: backend, reverb, postgres, minio, mailhog, pgadmin, web-app, admin-panel, landing-page-plans), `down` (`docker compose down`), `logs` (`docker compose logs -f`), `ps` (`docker compose ps`), `build` (`docker compose build`), `test-e2e` (`docker compose --profile test run --rm playwright ...`, the ONLY target that starts Playwright). Also add two host-shelling targets for the `mobile/` submodule, which runs outside Docker (per AD-004/spec.md): `mobile-android` (runs `./gradlew installDebug` or equivalent against `mobile/`, failing fast with a clear message if the Android SDK isn't on PATH) and `mobile-ios` (runs `xcodebuild`/`xcrun simctl` against `mobile/`'s Xcode project, failing fast with a clear message on a non-macOS host).
+**What**: Root `Makefile` wrapping the compose commands so no developer needs to know the raw invocation: `up` (`build`, then `docker compose up -d --wait` for every default-profile service: backend, reverb, postgres, minio, mailhog, pgadmin, web-app, admin-panel, landing-page-plans, then `make seed`, then best-effort `mobile-android`/`mobile-ios` - the mobile steps are prefixed `-` so a missing host toolchain or missing `mobile/` submodule prints its fail-fast error without aborting the rest of `up`), `down` (`docker compose down`), `logs` (`docker compose logs -f`), `ps` (`docker compose ps`), `build` (`docker compose build`), `test-e2e` (`docker compose --profile test run --rm playwright ...`, the ONLY target that starts Playwright). Also add two host-shelling targets for the `mobile/` submodule, which runs outside Docker (per AD-004/spec.md): `mobile-android` (runs `./gradlew installDebug` or equivalent against `mobile/`, failing fast with a clear message if the Android SDK isn't on PATH) and `mobile-ios` (runs `xcodebuild`/`xcrun simctl` against `mobile/`'s Xcode project, failing fast with a clear message on a non-macOS host).
+
+**SPEC_DEVIATION**: original T9 scope had `up` = plain `docker compose up -d --wait`; per explicit user instruction after the first Execute pass, `up` now also builds, seeds, and best-effort launches mobile. This is a stronger, hard `build` prerequisite that currently blocks `make up` entirely until the four app submodules have real source (see DEFERRED note below) - previously `up` alone (without `build`) could still succeed for the four unblocked services.
 **Where**: `Makefile`
 **Depends on**: T8
 **Requirement**: INFRA-09
@@ -346,11 +348,12 @@ T12 -> T13
 
 **Done when**:
 
-- [ ] DEFERRED: `make up` on a clean checkout bringing backend/reverb/web-app/admin-panel/landing-page-plans to Up/healthy - no submodule source yet, so their images can't build. Verified instead via `docker compose up -d --wait postgres minio mailhog pgadmin` (the four services with no dependency on unbuilt images), which reached Up/healthy for real (see T9 commit's gate run)
+- [ ] DEFERRED: `make up` on a clean checkout - now hard-depends on `build`, which fails for `backend`/`reverb`/`web-app`/`admin-panel`/`landing-page-plans` (no submodule source yet, so their images can't build). Verified instead via `docker compose build` failing as expected on those four, and `docker compose up -d --wait postgres minio mailhog pgadmin` (the four services with no dependency on unbuilt images) reaching Up/healthy for real
 - [x] GIVEN a plain `docker compose ps` after bringing up the default-profile-capable services WHEN inspected THEN it does NOT show a `playwright` container (the `up` target never references the `test` profile)
 - [ ] DEFERRED: `make test-e2e` starting the `playwright` container via the `test` profile and exiting with the suite's real pass/fail code - no e2e specs exist yet in the unbuilt frontend submodules
 - [x] `make down` cleanly stops and removes all containers started (verified against the four unblocked services)
 - [x] `make mobile-android` and `make mobile-ios` exist as Makefile targets and fail fast with a clear message when their host prerequisite is missing (Android SDK / macOS respectively) - DEFERRED end-to-end run (the `mobile/` submodule has no Gradle/Xcode project yet); the fail-fast path itself was run for real and exits non-zero with a clear message
+- [ ] DEFERRED: `make up` running `make seed` and best-effort `mobile-android`/`mobile-ios` end-to-end - unreachable today since `up`'s `build` prerequisite fails first; `seed` and the mobile targets were each verified independently in isolation (T11's commit, and this task's fail-fast check above)
 
 **Tests**: none
 **Gate**: build

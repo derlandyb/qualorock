@@ -49,10 +49,10 @@ None of the four platform specs (admin-panel, web-app, landing-page-plans, mobil
 2. THE system SHALL connect the backend to Postgres using a least-privilege application-level database user, never the database superuser.
 3. WHEN a developer inspects the running containers THEN the system SHALL show each with a distinct, documented port so the three web apps don't collide.
 4. IF a developer needs to work on mobile-app THEN the system SHALL NOT require Docker for that work - the documentation SHALL state that mobile-app runs on the host via Xcode/Android Studio/JVM instead.
-5. WHEN a developer runs `make up` THEN the system SHALL bring up every default-profile containerized service (backend, Reverb, Postgres, MinIO, Mailhog, web-app, admin-panel, landing-page-plans) via one Makefile target, without the developer needing to know the underlying `docker compose` invocation.
+5. WHEN a developer runs `make up` THEN the system SHALL build every containerized service's image, bring up every default-profile containerized service (backend, Reverb, Postgres, MinIO, Mailhog, pgAdmin, web-app, admin-panel, landing-page-plans), run `make seed`, and best-effort build/launch the mobile apps on the host (`mobile-android`/`mobile-ios` - a missing host toolchain or missing `mobile/` submodule prints its fail-fast error without aborting the rest of `make up`), all via one Makefile target, without the developer needing to know the underlying `docker compose` invocation.
 6. THE system SHALL run Playwright in its own Compose profile, isolated from the default profile, so that `docker compose up` and `make up` never start it - it SHALL start only via an explicit test command (`make test-e2e`).
 
-**Independent Test**: On a clean checkout, run `make up` and confirm `docker compose ps` shows all eight default-profile services Up and the `playwright` container absent; separately run `make test-e2e` and confirm the `playwright` container starts, runs, and exits, while `docs/development.md` explicitly instructs mobile-app development to happen outside Docker.
+**Independent Test**: On a clean checkout, run `make up` and confirm `docker compose ps` shows all eight default-profile services Up and the `playwright` container absent; separately run `make test-e2e` and confirm the `playwright` container starts, runs, and exits, while `docs/development.md` explicitly instructs mobile-app development to happen outside Docker. DEFERRED until the four app submodules have real source: `make up` now runs `build` as a hard prerequisite, so today it fails at that step for `backend`/`reverb`/`web-app`/`admin-panel`/`landing-page-plans` (empty submodules); `postgres`/`minio`/`mailhog`/`pgadmin` remain independently verifiable via `docker compose up -d --wait postgres minio mailhog pgadmin`.
 
 **Edge Cases**:
 
@@ -91,7 +91,7 @@ None of the four platform specs (admin-panel, web-app, landing-page-plans, mobil
 | INFRA-06 | P1: Local development environment starts with one command | Tasks | Verified |
 | INFRA-07 | P1: Local development environment starts with one command | Tasks | Verified |
 | INFRA-08 | P1: Local development environment starts with one command | Tasks | Verified |
-| INFRA-09 | P1: Local development environment starts with one command (Makefile `up` target) | Tasks | Verified |
+| INFRA-09 | P1: Local development environment starts with one command (Makefile `up` target) | Tasks | Implementing |
 | INFRA-10 | P1: Local development environment starts with one command (Playwright test-only profile isolation) | Tasks | Verified |
 | INFRA-11 | P2: QA seeding and a ready-to-use Postman collection | Tasks | Implementing |
 | INFRA-12 | P2: QA seeding and a ready-to-use Postman collection | Tasks | Implementing |
@@ -107,7 +107,7 @@ None of the four platform specs (admin-panel, web-app, landing-page-plans, mobil
 
 ## Success Criteria
 
-- [ ] `make up` (and, equivalently, `docker compose up -d --wait`) boots backend, Reverb, Postgres, MinIO, Mailhog, web-app, admin-panel, and landing-page-plans with no manual intervention.
+- [ ] `make up` builds every service's image, boots backend, Reverb, Postgres, MinIO, Mailhog, pgAdmin, web-app, admin-panel, and landing-page-plans, runs `make seed`, and best-effort launches the mobile apps, with no manual intervention.
 - [ ] `docs/development.md` explicitly states mobile-app runs on the host, not in Docker, and lists the host prerequisites.
 - [ ] No service's `.env.example` is missing a variable the compose file references.
 - [ ] The `playwright` service never appears in `docker compose ps` after `make up`/`docker compose up`, and only appears after `make test-e2e`.

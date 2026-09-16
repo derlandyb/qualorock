@@ -21,10 +21,10 @@ Once these are installed, `make mobile-android` and `make mobile-ios` (see the r
 
 ## Starting everything else
 
-A single command brings up every containerized service:
+A single command builds, boots, seeds, and launches everything:
 
 ```
-docker compose up -d --wait
+make up
 ```
 
-(equivalently, `make up`). This starts `backend`, `reverb`, `postgres`, `minio`, `mailhog`, `pgadmin`, `web-app`, `admin-panel`, and `landing-page-plans` - no manual PHP/Postgres/Node setup required on the host for any of those.
+This builds every containerized service's image, starts `backend`, `reverb`, `postgres`, `minio`, `mailhog`, `pgadmin`, `web-app`, `admin-panel`, and `landing-page-plans` (equivalent to `docker compose up -d --wait` after the build), runs `make seed`, then best-effort builds/launches the mobile apps via `mobile-android`/`mobile-ios` - a missing host toolchain or missing `mobile/` submodule prints that target's fail-fast error without aborting the rest of `make up`. No manual PHP/Postgres/Node setup is required on the host for the containerized services.
