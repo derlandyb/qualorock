@@ -167,7 +167,7 @@ T12 -> T13
 
 **Done when**:
 
-- [ ] Dockerfile installs Node deps and runs the dev server on a fixed port distinct from web-app's
+- [x] Dockerfile installs Node deps and runs the dev server on a fixed port distinct from web-app's
 - [ ] DEFERRED: `docker build -f admin/Dockerfile .` succeeding with exit code 0 - the `admin/` submodule has no source yet; re-run this check once real source lands
 
 **Tests**: none
