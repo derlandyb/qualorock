@@ -342,7 +342,7 @@ T43 -> T44
 
 ---
 
-### T5: PlanPrice migration + model
+### T5: PlanPrice migration + model ✅
 
 **What**: Append-only migration and model for `PlanPrice` (tier, amount in integer cents, effectiveFrom, effectiveTo nullable, setBySuperAdminId) - never updated in place per design.md's Tech Decisions.
 **Where**: `backend/database/migrations/xxxx_create_plan_prices_table.php, backend/app/Infrastructure/Persistence/Eloquent/PlanPrice.php, backend/app/Domain/Entities/PlanPrice.php, backend/app/Domain/Contracts/PlanPriceRepositoryInterface.php, backend/app/Infrastructure/Persistence/Eloquent/EloquentPlanPriceRepository.php`
@@ -356,10 +356,12 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Migration matches design.md's `PlanPrice` interface
-- [ ] Model has no `update`-in-place helper exposed - only `create` (append-only) is used elsewhere
-- [ ] `php artisan migrate --pretend` runs without error
-- [ ] GIVEN Clean Architecture (AD-012) THEN `Domain/Entities/PlanPrice.php` (plain, framework-agnostic) and `Domain/Contracts/PlanPriceRepositoryInterface.php` exist, and the Eloquent model implements that interface via a matching `Infrastructure/Persistence/Eloquent/EloquentPlanPriceRepository.php`
+- [x] Migration matches design.md's `PlanPrice` interface
+- [x] Model has no `update`-in-place helper exposed - only `create` (append-only) is used elsewhere
+- [x] `php artisan migrate --pretend` runs without error
+- [x] GIVEN Clean Architecture (AD-012) THEN `Domain/Entities/PlanPrice.php` (plain, framework-agnostic) and `Domain/Contracts/PlanPriceRepositoryInterface.php` exist, and the Eloquent model implements that interface via a matching `Infrastructure/Persistence/Eloquent/EloquentPlanPriceRepository.php`
+
+**Spec gap noted**: `set_by_super_admin_id` has no FK constraint - no `super_admins` table exists in any admin-panel task (T8 only configures the guard; Super Admin provisioning is out-of-band per AD-003). Stored as a plain unsigned bigint. Surfaced here for whoever builds the `super_admin` guard's user provider (T8) or later, not fixed as part of this task.
 
 **Tests**: none
 **Gate**: build
