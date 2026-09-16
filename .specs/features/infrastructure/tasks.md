@@ -346,11 +346,11 @@ T12 -> T13
 
 **Done when**:
 
-- [ ] GIVEN `make up` WHEN run on a clean checkout THEN backend, reverb, postgres, minio, mailhog, pgadmin, web-app, admin-panel, and landing-page-plans all reach Up/healthy - DEFERRED for backend/reverb/web-app/admin-panel/landing-page-plans (no submodule source yet, so their images can't build); postgres/minio/mailhog/pgadmin are verifiable now and must actually pass
-- [ ] GIVEN `make up` WHEN run THEN `docker compose ps` does NOT show a `playwright` container (the `up` target never references the `test` profile)
-- [ ] GIVEN `make test-e2e` WHEN run THEN the `playwright` container starts via the `test` profile, runs, and exits with the suite's real pass/fail code - DEFERRED (no e2e specs exist yet in the unbuilt frontend submodules)
-- [ ] `make down` cleanly stops and removes all containers started by `make up`
-- [ ] `make mobile-android` and `make mobile-ios` exist as Makefile targets and fail fast with a clear message when their host prerequisite is missing (Android SDK / macOS respectively) - DEFERRED end-to-end run (the `mobile/` submodule has no Gradle/Xcode project yet)
+- [ ] DEFERRED: `make up` on a clean checkout bringing backend/reverb/web-app/admin-panel/landing-page-plans to Up/healthy - no submodule source yet, so their images can't build. Verified instead via `docker compose up -d --wait postgres minio mailhog pgadmin` (the four services with no dependency on unbuilt images), which reached Up/healthy for real (see T9 commit's gate run)
+- [x] GIVEN a plain `docker compose ps` after bringing up the default-profile-capable services WHEN inspected THEN it does NOT show a `playwright` container (the `up` target never references the `test` profile)
+- [ ] DEFERRED: `make test-e2e` starting the `playwright` container via the `test` profile and exiting with the suite's real pass/fail code - no e2e specs exist yet in the unbuilt frontend submodules
+- [x] `make down` cleanly stops and removes all containers started (verified against the four unblocked services)
+- [x] `make mobile-android` and `make mobile-ios` exist as Makefile targets and fail fast with a clear message when their host prerequisite is missing (Android SDK / macOS respectively) - DEFERRED end-to-end run (the `mobile/` submodule has no Gradle/Xcode project yet); the fail-fast path itself was run for real and exits non-zero with a clear message
 
 **Tests**: none
 **Gate**: build

@@ -1,0 +1,57 @@
+.PHONY: up down logs ps build test-e2e mobile-android mobile-ios
+
+# Bring up every default-profile containerized service (backend, reverb,
+# postgres, minio, mailhog, pgadmin, web-app, admin-panel, landing-page-plans).
+# Never starts playwright - that lives under the "test" profile only.
+up:
+	docker compose up -d --wait
+
+down:
+	docker compose down
+
+logs:
+	docker compose logs -f
+
+ps:
+	docker compose ps
+
+build:
+	docker compose build
+
+# The only target that starts Playwright, via its dedicated compose profile.
+test-e2e:
+	docker compose --profile test run --rm playwright
+
+# mobile-app (submodule dir: mobile/) runs on the host, not in Docker (see
+# docs/development.md). These targets fail fast with a clear message when
+# the host prerequisite is missing, instead of hanging or crashing unclearly.
+
+mobile-android:
+	@if [ ! -d mobile ]; then \
+		echo "error: mobile/ submodule not found - clone/init it before running make mobile-android" >&2; \
+		exit 1; \
+	fi
+	@if ! command -v adb >/dev/null 2>&1 && [ -z "$$ANDROID_HOME" ] && [ -z "$$ANDROID_SDK_ROOT" ]; then \
+		echo "error: Android SDK not found (adb not on PATH, ANDROID_HOME/ANDROID_SDK_ROOT unset) - install Android Studio and its SDK first" >&2; \
+		exit 1; \
+	fi
+	@if [ ! -x mobile/gradlew ]; then \
+		echo "error: mobile/gradlew not found - the mobile/ submodule has no Gradle project yet" >&2; \
+		exit 1; \
+	fi
+	cd mobile && ./gradlew installDebug
+
+mobile-ios:
+	@if [ "$$(uname -s)" != "Darwin" ]; then \
+		echo "error: mobile-ios requires macOS (Xcode is not available on this host)" >&2; \
+		exit 1; \
+	fi
+	@if ! command -v xcodebuild >/dev/null 2>&1; then \
+		echo "error: xcodebuild not found - install Xcode and its command line tools first" >&2; \
+		exit 1; \
+	fi
+	@if [ ! -d mobile ]; then \
+		echo "error: mobile/ submodule not found - clone/init it before running make mobile-ios" >&2; \
+		exit 1; \
+	fi
+	cd mobile && xcodebuild -scheme mobile -destination 'platform=iOS Simulator,name=iPhone 15' build

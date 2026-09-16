@@ -91,7 +91,7 @@ None of the four platform specs (admin-panel, web-app, landing-page-plans, mobil
 | INFRA-06 | P1: Local development environment starts with one command | Tasks | Verified |
 | INFRA-07 | P1: Local development environment starts with one command | Tasks | Verified |
 | INFRA-08 | P1: Local development environment starts with one command | Tasks | Pending |
-| INFRA-09 | P1: Local development environment starts with one command (Makefile `up` target) | Tasks | Pending |
+| INFRA-09 | P1: Local development environment starts with one command (Makefile `up` target) | Tasks | Implementing |
 | INFRA-10 | P1: Local development environment starts with one command (Playwright test-only profile isolation) | Tasks | Implementing |
 | INFRA-11 | P2: QA seeding and a ready-to-use Postman collection | Tasks | Pending |
 | INFRA-12 | P2: QA seeding and a ready-to-use Postman collection | Tasks | Pending |
