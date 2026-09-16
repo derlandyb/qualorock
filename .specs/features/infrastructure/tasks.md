@@ -294,10 +294,10 @@ T12 -> T13
 
 **Done when**:
 
-- [ ] Doc contains an explicit sentence-level statement that mobile-app runs on host, not in Docker, and why
-- [ ] Doc lists the one-time host prerequisites for mobile-app (Xcode, Android Studio, JDK/Gradle)
-- [ ] Doc gives the single command to start every containerized service
-- [ ] `grep -q 'mobile-app' docs/development.md` and `grep -qi 'host' docs/development.md` both succeed
+- [x] Doc contains an explicit sentence-level statement that mobile-app runs on host, not in Docker, and why
+- [x] Doc lists the one-time host prerequisites for mobile-app (Xcode, Android Studio, JDK/Gradle)
+- [x] Doc gives the single command to start every containerized service
+- [x] `grep -q 'mobile-app' docs/development.md` and `grep -qi 'host' docs/development.md` both succeed
 
 **Tests**: none
 **Gate**: build
