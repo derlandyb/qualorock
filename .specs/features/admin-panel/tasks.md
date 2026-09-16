@@ -266,7 +266,7 @@ T43 -> T44
 
 ---
 
-### T2: Venue migration + model
+### T2: Venue migration + model ✅
 
 **What**: Migration and Eloquent model for `Venue` (organizerId FK, name, description, address, contactInfo, imageUrl nullable), one venue per organizer per current scope.
 **Where**: `backend/database/migrations/xxxx_create_venues_table.php, backend/app/Infrastructure/Persistence/Eloquent/Venue.php`
@@ -280,9 +280,9 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Migration FKs `organizer_id` to `organizers` with a unique constraint (one venue per organizer)
-- [ ] Model defines `belongsTo(Organizer::class)`
-- [ ] `php artisan migrate --pretend` runs without error
+- [x] Migration FKs `organizer_id` to `organizers` with a unique constraint (one venue per organizer)
+- [x] Model defines `belongsTo(Organizer::class)`
+- [x] `php artisan migrate --pretend` runs without error
 
 **Tests**: none
 **Gate**: build
