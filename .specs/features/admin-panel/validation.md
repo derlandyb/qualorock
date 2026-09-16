@@ -760,3 +760,5 @@ Matches design.md's "VenueController, PromoterController" component description 
 **Issues found**: None blocking. One spec-precision/scope note (AC2's "consumer-facing" wording vs. this repo's organizer-facing test), which reflects an intentional cross-feature scope boundary (admin-panel owns the data; web-app/mobile-app render the consumer view), not a gap in this implementation.
 
 **Next steps**: None required for Phase 4 sign-off.
+
+**Post-verification update (PR #4 review)**: the automated PR review pass found 0 correctness bugs and 2 reuse/cleanup issues - `LinkPromoterRequest` duplicating `OrganizerOwnedPromoterRequest`'s promoter-resolution logic instead of extending it, and `EloquentVenueRepository::toEventEntity()` duplicating `EloquentEventRepository::toEntity()`'s Event mapping. Both were fixed in a follow-up commit (`LinkPromoterRequest extends OrganizerOwnedPromoterRequest`; shared `EventEntityMapper` used by both repositories) and re-verified: 49/49 tests still passing, `pint --test` clean. PR #4 merged with the fix included.
