@@ -291,7 +291,7 @@ T43 -> T44
 
 ---
 
-### T3: Event migration + model
+### T3: Event migration + model ✅
 
 **What**: Migration and Eloquent model for `Event` (organizerId, venueId FKs, title, description, dateTime, location, fullAddress, featuredImageUrl, externalTicketLink, priceType, musicCategory, capacity nullable, ageRange nullable, additionalInfo/accessibilityInfo/eventRules nullable, status enum, publishedAt nullable).
 **Where**: `backend/database/migrations/xxxx_create_events_table.php, backend/app/Infrastructure/Persistence/Eloquent/Event.php, backend/app/Domain/Entities/Event.php, backend/app/Domain/Contracts/EventRepositoryInterface.php, backend/app/Infrastructure/Persistence/Eloquent/EloquentEventRepository.php`
@@ -305,10 +305,10 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Migration matches design.md's `Event` interface field-for-field
-- [ ] Model casts `status` as an enum with the four values (draft/published/cancelled/closed)
-- [ ] `php artisan migrate --pretend` runs without error
-- [ ] GIVEN Clean Architecture (AD-012) THEN `Domain/Entities/Event.php` (plain, framework-agnostic) and `Domain/Contracts/EventRepositoryInterface.php` exist, and the Eloquent model implements that interface via a matching `Infrastructure/Persistence/Eloquent/EloquentEventRepository.php`
+- [x] Migration matches design.md's `Event` interface field-for-field
+- [x] Model casts `status` as an enum with the four values (draft/published/cancelled/closed)
+- [x] `php artisan migrate --pretend` runs without error
+- [x] GIVEN Clean Architecture (AD-012) THEN `Domain/Entities/Event.php` (plain, framework-agnostic) and `Domain/Contracts/EventRepositoryInterface.php` exist, and the Eloquent model implements that interface via a matching `Infrastructure/Persistence/Eloquent/EloquentEventRepository.php`
 
 **Tests**: none
 **Gate**: build
