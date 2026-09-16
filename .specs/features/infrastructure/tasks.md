@@ -320,10 +320,10 @@ T12 -> T13
 
 **Done when**:
 
-- [ ] The `playwright` service declares `profiles: ["test"]` in docker-compose.yml
-- [ ] GIVEN a plain `docker compose up` (no `--profile` flag) WHEN inspected THEN `docker compose ps` does NOT list a `playwright` container
-- [ ] GIVEN `docker compose --profile test up playwright` WHEN run THEN the Playwright container starts and can reach `website`/`adminpanel`/`landingpage` over the shared compose network
-- [ ] `docker compose config -q` still exits 0 with the new service present
+- [x] The `playwright` service declares `profiles: ["test"]` in docker-compose.yml
+- [x] GIVEN a plain `docker compose up` (no `--profile` flag) WHEN inspected THEN `docker compose ps` does NOT list a `playwright` container
+- [ ] DEFERRED: `docker compose --profile test up playwright` reaching `website`/`admin-panel`/`landing-page-plans` over the shared network - those three services' images can't build yet (no submodule source), so the Playwright container has nothing running to reach
+- [x] `docker compose config -q` still exits 0 with the new service present
 
 **Tests**: none
 **Gate**: build

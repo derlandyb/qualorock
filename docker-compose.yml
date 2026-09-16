@@ -156,3 +156,20 @@ services:
       - postgres
     networks:
       - qualorock
+
+  # Test-only: never starts with the default profile (`docker compose up`).
+  # Start explicitly with `docker compose --profile test up playwright` (or `make test-e2e`).
+  playwright:
+    image: mcr.microsoft.com/playwright:latest
+    profiles: ["test"]
+    working_dir: /e2e
+    volumes:
+      - ./website/e2e:/e2e/website
+      - ./admin/e2e:/e2e/admin
+      - ./landingpage/e2e:/e2e/landingpage
+    depends_on:
+      - web-app
+      - admin-panel
+      - landing-page-plans
+    networks:
+      - qualorock
