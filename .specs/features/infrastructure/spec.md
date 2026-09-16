@@ -87,7 +87,7 @@ None of the four platform specs (admin-panel, web-app, landing-page-plans, mobil
 | INFRA-02 | P1: Local development environment starts with one command | Tasks | Implementing |
 | INFRA-03 | P1: Local development environment starts with one command | Tasks | Implementing |
 | INFRA-04 | P1: Local development environment starts with one command | Tasks | Implementing |
-| INFRA-05 | P1: Local development environment starts with one command | Tasks | Pending |
+| INFRA-05 | P1: Local development environment starts with one command | Tasks | Verified |
 | INFRA-06 | P1: Local development environment starts with one command | Tasks | Pending |
 | INFRA-07 | P1: Local development environment starts with one command | Tasks | Pending |
 | INFRA-08 | P1: Local development environment starts with one command | Tasks | Pending |

@@ -216,9 +216,9 @@ T12 -> T13
 
 **Done when**:
 
-- [ ] All eight services declared with correct build contexts (T1-T4 Dockerfiles, using the `api/`/`admin/` renamed paths) or pinned images (postgres, minio, mailhog)
-- [ ] Postgres service uses a least-privilege app-level DB user/password (not superuser) for the backend connection, per AD-008
-- [ ] `docker compose config -q` exits 0 (valid compose file)
+- [x] All eight services declared with correct build contexts (T1-T4 Dockerfiles, using the `api/`/`admin/` renamed paths) or pinned images (postgres, minio, mailhog)
+- [x] Postgres service uses a least-privilege app-level DB user/password (not superuser) for the backend connection, per AD-008
+- [x] `docker compose config -q` exits 0 (valid compose file)
 
 **Tests**: none
 **Gate**: build

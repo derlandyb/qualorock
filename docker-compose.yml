@@ -1,0 +1,146 @@
+# Local dev orchestration for QualORock (AD-004, AD-008, AD-009).
+# Every stack runs here except mobile-app, which runs on the host (see docs/development.md).
+
+networks:
+  qualorock:
+    name: qualorock
+
+volumes:
+  postgres_data:
+  minio_data:
+
+x-backend-env: &backend-env
+  APP_URL: ${APP_URL:-http://localhost:8000}
+  SESSION_DOMAIN: ${SESSION_DOMAIN:-localhost}
+  SANCTUM_STATEFUL_DOMAINS: ${SANCTUM_STATEFUL_DOMAINS:-localhost}
+  DB_CONNECTION: pgsql
+  DB_HOST: postgres
+  DB_PORT: 5432
+  DB_DATABASE: ${POSTGRES_DB}
+  DB_USERNAME: ${POSTGRES_USER}
+  DB_PASSWORD: ${POSTGRES_PASSWORD}
+  REVERB_APP_ID: ${REVERB_APP_ID}
+  REVERB_APP_KEY: ${REVERB_APP_KEY}
+  REVERB_APP_SECRET: ${REVERB_APP_SECRET}
+  REVERB_HOST: reverb
+  REVERB_PORT: ${REVERB_PORT:-8080}
+  AWS_ENDPOINT: http://minio:9000
+  AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+  AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+  AWS_BUCKET: ${MINIO_BUCKET:-qualorock}
+  AWS_USE_PATH_STYLE_ENDPOINT: "true"
+  MAIL_HOST: mailhog
+  MAIL_PORT: 1025
+
+services:
+  backend:
+    build:
+      context: ./api
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+    environment:
+      <<: *backend-env
+    depends_on:
+      - postgres
+      - minio
+      - mailhog
+    networks:
+      - qualorock
+
+  reverb:
+    build:
+      context: ./api
+    ports:
+      - "${REVERB_PORT:-8080}:8080"
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    environment:
+      <<: *backend-env
+    depends_on:
+      - postgres
+    networks:
+      - qualorock
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - qualorock
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - qualorock
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "${MAILHOG_SMTP_PORT:-1025}:1025"
+      - "${MAILHOG_UI_PORT:-8025}:8025"
+    networks:
+      - qualorock
+
+  web-app:
+    build:
+      context: ./website
+    ports:
+      - "${WEB_APP_PORT:-5173}:5173"
+    environment:
+      VITE_API_URL: ${WEB_APP_API_URL:-http://localhost:8000}
+      VITE_GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
+      VITE_OAUTH_CLIENT_ID: ${WEB_APP_OAUTH_CLIENT_ID}
+    depends_on:
+      - backend
+    networks:
+      - qualorock
+
+  admin-panel:
+    build:
+      context: ./admin
+    ports:
+      - "${ADMIN_PANEL_PORT:-5174}:5174"
+    environment:
+      VITE_API_URL: ${ADMIN_PANEL_API_URL:-http://localhost:8000}
+      VITE_OAUTH_CLIENT_ID: ${ADMIN_PANEL_OAUTH_CLIENT_ID}
+    depends_on:
+      - backend
+    networks:
+      - qualorock
+
+  landing-page-plans:
+    build:
+      context: ./landingpage
+    ports:
+      - "${LANDING_PAGE_PLANS_PORT:-5175}:5175"
+    environment:
+      VITE_API_URL: ${LANDING_PAGE_PLANS_API_URL:-http://localhost:8000}
+    depends_on:
+      - backend
+    networks:
+      - qualorock
