@@ -317,7 +317,7 @@ T43 -> T44
 
 ---
 
-### T4: Promoter + EventPromoter migrations + models
+### T4: Promoter + EventPromoter migrations + models ✅
 
 **What**: Migration and model for `Promoter` (organizerId FK, name, phone, email, instagramUrl, tiktokUrl) plus the `EventPromoter` pivot table (eventId, promoterId).
 **Where**: `backend/database/migrations/xxxx_create_promoters_table.php, backend/database/migrations/xxxx_create_event_promoter_table.php, backend/app/Infrastructure/Persistence/Eloquent/Promoter.php`
@@ -331,9 +331,9 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Promoter migration FKs to `organizers`; pivot table FKs to both `events` and `promoters` with a composite unique key
-- [ ] Model defines `belongsToMany(Event::class)` via the pivot
-- [ ] `php artisan migrate --pretend` runs without error
+- [x] Promoter migration FKs to `organizers`; pivot table FKs to both `events` and `promoters` with a composite unique key
+- [x] Model defines `belongsToMany(Event::class)` via the pivot
+- [x] `php artisan migrate --pretend` runs without error
 
 **Tests**: none
 **Gate**: build
