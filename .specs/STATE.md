@@ -146,6 +146,22 @@
 - **Date**: 2026-09-16
 - **Status**: active
 
+### AD-019
+- **Decision**: Google Analytics 4 "Consent Mode v2" (`gtag('consent', 'default'/'update', {...})`) is the consent mechanism for all four platform apps' GA integration, **superseding** `landing-page-plans/design.md`'s originally-specified mechanism ("GA script tag is conditionally loaded only after a separate cookie-consent banner is accepted" — that file's existing text is not yet amended; this AD records the decision, the file edit is a follow-up). Under Consent Mode v2, `gtag.js` always loads; the cookie-consent banner (still a distinct UI from AD-008's account-data consent checkbox) calls `gtag('consent', 'default', {analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied'})` on page load, then `gtag('consent', 'update', {analytics_storage: 'granted'})` if the user accepts. Since this project has no Google Ads integration, `ad_storage`/`ad_user_data`/`ad_personalization` stay permanently `'denied'` — only `analytics_storage` is ever toggled.
+- **Reason**: Explicit user decision this session, made with the trade-off named directly — Google's current (June 2026) guidance recommends Consent Mode v2 over conditional script loading, and the user chose to align with it despite `landing-page-plans` already specifying the older mechanism.
+- **Trade-off**: `landing-page-plans/design.md` needs a follow-up amendment to match (not done as part of this decision — a separate, explicit edit to that file); the three `ad_*` consent flags are set up with no corresponding Ads product to use them, which is inert but harmless scaffolding kept for parity with Google's four-flag model rather than a home-grown two-flag variant.
+- **Scope**: Governs all of `.specs/features/{mobile-app,web-app,admin-panel,landing-page-plans}`'s GA/analytics-tracking mechanism; supersedes `landing-page-plans/design.md`'s conditional-script-load description specifically.
+- **Date**: 2026-09-16
+- **Status**: active
+
+### AD-020
+- **Decision**: `analytics-tracking`'s two remaining Design-phase unknowns resolved: (1) mobile's Firebase Analytics integration uses Kotlin `expect`/`actual` wrapping the native Android and iOS Firebase Analytics SDKs directly (same pattern as `dev-logging`'s `Logger`, AD-017) — no third-party KMP wrapper library (e.g. Firebase-KMP-Kit, KFire); confirmed there is no official Google-maintained KMP Firebase SDK as of this session. (2) Consent-for-tracking UI is new, real scope for this feature on `web-app`, `admin-panel`, and `mobile-app` (which have no such UI today, only AD-008's separate account-data consent checkbox) — each gets its own cookie-consent banner (web, per-app copy, no shared component library per AD-004) or a one-time in-app tracking-consent prompt (mobile), not an assumed pre-existing prerequisite.
+- **Reason**: Explicit user decisions this session, resolving `analytics-tracking/spec.md`'s two `n`-confirmed Assumptions.
+- **Trade-off**: expect/actual for Firebase means more boilerplate per platform than a unified wrapper library would give, accepted to avoid a community-maintained (non-Google) dependency. Building three new consent UIs (vs. assuming they exist) meaningfully grows this feature's scope beyond "wire up analytics calls," accepted because AD-018's Scope line already committed to extending the consent mechanism to those apps.
+- **Scope**: Governs `.specs/features/analytics-tracking`'s Design/Tasks/Execute.
+- **Date**: 2026-09-16
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: Seven feature units now exist: the original four platform features (AD-001) plus `infrastructure`, plus two new cross-cutting units Specified this session — `dev-logging` (AD-017) and `analytics-tracking` (AD-018).

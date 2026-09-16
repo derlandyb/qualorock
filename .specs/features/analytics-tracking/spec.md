@@ -15,7 +15,7 @@ AD-009 decided Google Analytics for consumer-facing surfaces and mentioned "firs
 | --- | --- |
 | Replacing Google Analytics with a self-hosted/first-party alternative | Explicit user decision this session — this spec extends GA's own custom-event capability, it does not replace GA or build a new tracking backend. |
 | A new first-party event-storage backend (own DB table + admin dashboard reporting) | Same reason — GA4 is the system of record for these events; no duplicate storage is introduced. |
-| Landing-page-plans's existing GA script/cookie-consent-banner mechanism | Already specified in `landing-page-plans/design.md` per AD-009 — this spec extends that mechanism to the other three apps, it doesn't re-specify it. |
+`landing-page-plans/design.md`'s original conditional-script-load description | Superseded by AD-019 (Consent Mode v2, confirmed this session) — that file's text is not re-litigated here beyond noting it needs a follow-up amendment to match. |
 | Recalling/deleting analytics events already sent to Google after a consent revocation | Google-side data deletion is a separate LGPD data-rights process (AD-008), not a client-side app behavior this spec can enforce. |
 
 ---
@@ -24,10 +24,11 @@ AD-009 decided Google Analytics for consumer-facing surfaces and mentioned "firs
 
 | Assumption / decision | Chosen default | Rationale | Confirmed? |
 | --- | --- | --- | --- |
-| Mobile analytics SDK | Firebase Analytics (GA4's mobile SDK) | `gtag.js` (used on web) is a web-only script; Firebase Analytics is Google's own GA4-compatible mobile client | n — flagged for confirmation during this feature's Design phase |
-| Starter custom-event taxonomy | `web-app`/`mobile-app`: `event_view`, `favorite_added`, `signup_completed`. `admin-panel`: `event_created`, `promoter_invited`. `landing-page-plans`: `plan_selected`, `checkout_started` | A representative first cut per app's key user actions, covering each app's primary funnel step | n — flagged for refinement with the user during Design |
+| Mobile analytics SDK | Firebase Analytics via Kotlin `expect`/`actual` wrapping the native Android/iOS Firebase SDKs directly (AD-020) — no third-party KMP wrapper library | Confirmed this session: no official Google-maintained KMP Firebase SDK exists; expect/actual matches `dev-logging`'s `Logger` pattern (AD-017) | y |
+| Starter custom-event taxonomy | `web-app`/`mobile-app`: `event_view`, `favorite_added`, `signup_completed`. `admin-panel`: `event_created`, `promoter_invited`. `landing-page-plans`: `plan_selected`, `checkout_started` | A representative first cut per app's key user actions, covering each app's primary funnel step | n — carried forward as-is into Design; still open for refinement in a future pass |
 | GA4 event/parameter limits | Event names ≤40 chars (alphanumeric + underscore, starting with a letter); ≤25 parameters per event; parameter names ≤40 chars (same character rule); parameter values ≤100 chars | Confirmed via Google's current GA4 documentation (Measurement Protocol event limits, Sept 2026) | y |
-| Consent mechanism | Reuse `landing-page-plans`'s existing cookie/tracking-consent banner mechanism (AD-008/AD-009) on the other three apps — no new consent UI or storage model | Explicit user decision: this extends the existing consent gate, it isn't a second mechanism | y |
+| Consent mechanism | Google Analytics 4 Consent Mode v2 (`gtag('consent', 'default'/'update', {...})`) across all four apps (AD-019) — supersedes `landing-page-plans/design.md`'s originally-specified conditional-script-load mechanism | Explicit user decision this session: align with Google's current (June 2026) guidance rather than keep the older mechanism | y |
+| Consent-for-tracking UI on web-app/admin-panel/mobile-app | New scope for this feature (AD-020) — each app gets its own cookie-consent banner (web, per-app copy per AD-004) or one-time in-app prompt (mobile); not assumed to pre-exist | Confirmed this session: these three apps have no tracking-consent UI today, only AD-008's separate account-data consent checkbox | y |
 | Mobile "debug build" definition | Same debug/release build flavor `dev-logging` (AD-017) already uses for its `Logger` no-op behavior | Keeps one build-flavor concept instead of two competing definitions | y |
 
 **Open questions:** none — all resolved or logged above.
@@ -60,13 +61,17 @@ AD-009 decided Google Analytics for consumer-facing surfaces and mentioned "firs
 
 **Acceptance Criteria**:
 
-1. WHILE a user has not granted tracking/cookie consent, `web-app`, `admin-panel`, and `landing-page-plans` SHALL NOT fire any GA custom event or load the GA script.
-2. WHILE a user has granted tracking/cookie consent, the system SHALL fire GA4 custom events via `gtag('event', name, params)` for: `web-app` — `event_view` (viewing an event's detail page), `favorite_added` (favoriting an event), `signup_completed` (completing signup); `admin-panel` — `event_created` (an organizer publishes an event), `promoter_invited` (an organizer invites a promoter); `landing-page-plans` — `plan_selected` (choosing a plan tier), `checkout_started` (following the external billing link).
-3. THE system SHALL validate every custom event name against GA4's naming rule (≤40 characters, alphanumeric and underscore only, starting with a letter) before calling `gtag`, and SHALL reject — log and skip, never send — any event name that violates the rule.
-4. THE system SHALL cap every custom event to at most 25 parameters, each with a parameter name ≤40 characters, truncating any parameter value that exceeds 100 characters rather than sending an oversized value.
-5. IF the GA script fails to load, or a `gtag` call throws THEN the system SHALL swallow the failure and continue normal app operation — an analytics failure SHALL NOT block or crash the user action that triggered it.
+1. WHEN a user visits `web-app`, `admin-panel`, or `landing-page-plans` with no stored consent choice THEN the system SHALL display a cookie-consent banner offering to accept or decline tracking, distinct from AD-008's account-data consent checkbox.
+2. WHEN a user makes a choice on the cookie-consent banner THEN the system SHALL persist that choice client-side (e.g. `localStorage`) so the banner does not reappear on a later visit.
+3. WHEN `web-app`, `admin-panel`, or `landing-page-plans` loads THEN the system SHALL call `gtag('consent', 'default', {analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied'})` before any custom event is fired (Consent Mode v2, AD-019), then immediately re-apply a previously stored `'granted'` choice via `gtag('consent', 'update', ...)` if one exists.
+4. WHILE `analytics_storage` has not been updated to `'granted'`, `web-app`, `admin-panel`, and `landing-page-plans` SHALL NOT call `gtag('event', ...)` for any custom event defined in this spec.
+5. WHEN a user accepts the cookie-consent banner THEN the system SHALL call `gtag('consent', 'update', {analytics_storage: 'granted'})`, and from that point on SHALL fire GA4 custom events via `gtag('event', name, params)` for: `web-app` — `event_view` (viewing an event's detail page), `favorite_added` (favoriting an event), `signup_completed` (completing signup); `admin-panel` — `event_created` (an organizer publishes an event), `promoter_invited` (an organizer invites a promoter); `landing-page-plans` — `plan_selected` (choosing a plan tier), `checkout_started` (following the external billing link).
+6. THE system SHALL keep `ad_storage`, `ad_user_data`, and `ad_personalization` permanently `'denied'` — no user action in this spec ever updates them to `'granted'` (no Google Ads integration exists to justify it).
+7. THE system SHALL validate every custom event name against GA4's naming rule (≤40 characters, alphanumeric and underscore only, starting with a letter) before calling `gtag`, and SHALL reject — log and skip, never send — any event name that violates the rule.
+8. THE system SHALL cap every custom event to at most 25 parameters, each with a parameter name ≤40 characters, truncating any parameter value that exceeds 100 characters rather than sending an oversized value.
+9. IF the GA script fails to load, or a `gtag` call throws THEN the system SHALL swallow the failure and continue normal app operation — an analytics failure SHALL NOT block or crash the user action that triggered it.
 
-**Independent Test**: With tracking consent granted, trigger `event_view` on `web-app` and confirm the GA4 DebugView shows the event with its parameters; revoke consent and confirm no further events fire.
+**Independent Test**: With `analytics_storage` granted, trigger `event_view` on `web-app` and confirm the GA4 DebugView shows the event with its parameters; revoke consent (update `analytics_storage` back to `'denied'`) and confirm no further custom events fire.
 
 ---
 
@@ -78,10 +83,11 @@ AD-009 decided Google Analytics for consumer-facing surfaces and mentioned "firs
 
 **Acceptance Criteria**:
 
-1. WHILE a user has not granted tracking consent, `mobile-app` SHALL NOT initialize Firebase Analytics or send any event.
-2. WHILE a user has granted tracking consent, `mobile-app` SHALL fire `event_view`, `favorite_added`, and `signup_completed` via Firebase Analytics' `logEvent` call, using the same event and parameter names as the web implementation (AC2 of the P1 story).
-3. THE system SHALL apply the same GA4 naming and size limits (P1's AC3/AC4) to every Firebase Analytics event fired on mobile.
-4. IF the Firebase Analytics SDK fails to initialize, or a `logEvent` call throws THEN the system SHALL swallow the failure and continue normal app operation.
+1. WHEN a user opens `mobile-app` for the first time (no stored consent choice) THEN the system SHALL display a one-time tracking-consent prompt, distinct from AD-008's account-data consent, and persist the user's choice on-device so it is not shown again on later launches.
+2. WHILE the stored consent choice is not `granted`, `mobile-app` SHALL call Firebase Analytics' `setAnalyticsCollectionEnabled(false)` and SHALL NOT call `logEvent` for any custom event.
+3. WHEN a user grants tracking consent THEN `mobile-app` SHALL call `setAnalyticsCollectionEnabled(true)`, and from that point on SHALL fire `event_view`, `favorite_added`, and `signup_completed` via `logEvent`, using the same event and parameter names as the web implementation (P1's AC5).
+4. THE system SHALL apply the same GA4 naming and size limits (P1's AC7/AC8) to every Firebase Analytics event fired on mobile.
+5. IF the Firebase Analytics SDK fails to initialize, or a `logEvent` call throws THEN the system SHALL swallow the failure and continue normal app operation.
 
 **Independent Test**: With tracking consent granted in a debug build, trigger `favorite_added` on mobile and confirm the same event/parameter shape reaches GA4 DebugView as the web version.
 
@@ -106,7 +112,7 @@ AD-009 decided Google Analytics for consumer-facing surfaces and mentioned "firs
 
 - IF a user revokes previously granted tracking consent THEN the system SHALL stop firing new events from that point forward; data already sent to Google before revocation is not recalled by this spec (that is a separate Google-side/LGPD data-rights process, out of scope here).
 - THE system SHALL only ever pass non-PII, categorical or identifier values as event parameters (e.g. an event's UUID, a plan-tier name) — never free-text user input (a name, an email address, a search query) — since this spec adds no separate PII-redaction step for analytics parameters beyond the taxonomy itself being non-PII by construction.
-- IF an app attempts to fire a custom event before the user has made any consent choice (neither granted nor declined) THEN the system SHALL treat that as consent-not-granted and SHALL NOT fire the event, consistent with AC1/AC1 (P1/P2) treating "not granted" as the default safe state.
+- IF an app attempts to fire a custom event before the user has made any consent choice (neither granted nor declined) THEN the system SHALL treat that as consent-not-granted and SHALL NOT fire the event, consistent with P1's AC4 and P2's AC2 treating "not granted" as the default safe state.
 
 ---
 
@@ -119,23 +125,29 @@ AD-009 decided Google Analytics for consumer-facing surfaces and mentioned "firs
 | ANLY-03 | P1: Web apps fire a consistent custom-event taxonomy, consent-gated | Tasks | Pending |
 | ANLY-04 | P1: Web apps fire a consistent custom-event taxonomy, consent-gated | Tasks | Pending |
 | ANLY-05 | P1: Web apps fire a consistent custom-event taxonomy, consent-gated | Tasks | Pending |
-| ANLY-06 | P2: Mobile app fires the same taxonomy via Firebase Analytics | Tasks | Pending |
-| ANLY-07 | P2: Mobile app fires the same taxonomy via Firebase Analytics | Tasks | Pending |
-| ANLY-08 | P2: Mobile app fires the same taxonomy via Firebase Analytics | Tasks | Pending |
-| ANLY-09 | P2: Mobile app fires the same taxonomy via Firebase Analytics | Tasks | Pending |
-| ANLY-10 | P3: A developer can see every Firebase Analytics event mobile sends, in debug builds | Tasks | Pending |
-| ANLY-11 | P3: A developer can see every Firebase Analytics event mobile sends, in debug builds | Tasks | Pending |
+| ANLY-06 | P1: Web apps fire a consistent custom-event taxonomy, consent-gated | Tasks | Pending |
+| ANLY-07 | P1: Web apps fire a consistent custom-event taxonomy, consent-gated | Tasks | Pending |
+| ANLY-08 | P1: Web apps fire a consistent custom-event taxonomy, consent-gated | Tasks | Pending |
+| ANLY-09 | P1: Web apps fire a consistent custom-event taxonomy, consent-gated | Tasks | Pending |
+| ANLY-10 | P2: Mobile app fires the same taxonomy via Firebase Analytics | Tasks | Pending |
+| ANLY-11 | P2: Mobile app fires the same taxonomy via Firebase Analytics | Tasks | Pending |
+| ANLY-12 | P2: Mobile app fires the same taxonomy via Firebase Analytics | Tasks | Pending |
+| ANLY-13 | P2: Mobile app fires the same taxonomy via Firebase Analytics | Tasks | Pending |
+| ANLY-14 | P2: Mobile app fires the same taxonomy via Firebase Analytics | Tasks | Pending |
+| ANLY-15 | P3: A developer can see every Firebase Analytics event mobile sends, in debug builds | Tasks | Pending |
+| ANLY-16 | P3: A developer can see every Firebase Analytics event mobile sends, in debug builds | Tasks | Pending |
 
 **ID format:** `ANLY-[NUMBER]`
 
 **Status values:** Pending → In Design → In Tasks → Implementing → Verified
 
-**Coverage:** 11 total, 0 mapped to tasks, 11 unmapped ⚠️
+**Coverage:** 16 total, 0 mapped to tasks, 16 unmapped ⚠️
 
 ---
 
 ## Success Criteria
 
+- [ ] `web-app` and `admin-panel` each show a working cookie-consent banner (landing-page-plans's is amended to Consent Mode v2 by a follow-up to its own `design.md`), and `mobile-app` shows a one-time in-app tracking-consent prompt, none of which existed before this feature.
 - [ ] `web-app`, `admin-panel`, and `landing-page-plans` each fire their defined custom events, visible in GA4 DebugView, only after consent is granted.
 - [ ] Revoking consent on any app stops further events without a page reload/app restart being required.
 - [ ] `mobile-app`'s `event_view`/`favorite_added`/`signup_completed` events match `web-app`'s event/parameter names exactly.
