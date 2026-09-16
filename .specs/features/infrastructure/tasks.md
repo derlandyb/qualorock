@@ -192,7 +192,7 @@ T12 -> T13
 
 **Done when**:
 
-- [ ] Dockerfile installs Node deps and runs the dev server on a fixed port distinct from web-app's and admin-panel's
+- [x] Dockerfile installs Node deps and runs the dev server on a fixed port distinct from web-app's and admin-panel's
 - [ ] DEFERRED: `docker build -f landingpage/Dockerfile .` succeeding with exit code 0 - the `landingpage/` submodule has no source yet; re-run this check once real source lands
 
 **Tests**: none
