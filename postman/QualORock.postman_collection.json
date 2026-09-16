@@ -1,0 +1,24 @@
+{
+  "info": {
+    "name": "QualORock",
+    "description": "Scaffolded collection for the QualORock backend API, organized into one folder per feature. Folders are empty until each feature's endpoints are implemented (see infrastructure/tasks.md T12 DEFERRED notes) - populate with real requests generated from admin-panel, web-app, and landing-page-plans routes as those features are executed.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "admin-panel",
+      "description": "Endpoints owned by the admin-panel feature (Organizer/Venue/Event/Promoter/PlanPrice). No implemented endpoints yet.",
+      "item": []
+    },
+    {
+      "name": "web-app",
+      "description": "Endpoints owned by the web-app feature (consumer User, Favorite/EventInterest, LGPD data-rights UI). No implemented endpoints yet.",
+      "item": []
+    },
+    {
+      "name": "landing-page-plans",
+      "description": "Endpoints owned by the landing-page-plans feature. No implemented endpoints yet.",
+      "item": []
+    }
+  ]
+}

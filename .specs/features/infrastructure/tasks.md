@@ -428,7 +428,7 @@ T12 -> T13
 
 **Done when**:
 
-- [ ] `postman/QualORock.postman_collection.json` and `postman/local.postman_environment.json` exist with one folder per feature (admin-panel, web-app, landing-page-plans), scaffolded structure ready to receive real requests
+- [x] `postman/QualORock.postman_collection.json` and `postman/local.postman_environment.json` exist with one folder per feature (admin-panel, web-app, landing-page-plans), scaffolded structure ready to receive real requests
 - [ ] DEFERRED: one request per implemented endpoint, populated with working example data - admin-panel/web-app/landing-page-plans have no implemented endpoints yet
 - [ ] DEFERRED: auth requests carrying a working seeded credential/token - no seeded fixtures exist yet (blocked on T11)
 - [ ] DEFERRED: request bodies/params referencing real seeded record IDs
