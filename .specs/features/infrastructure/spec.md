@@ -95,7 +95,7 @@ None of the four platform specs (admin-panel, web-app, landing-page-plans, mobil
 | INFRA-10 | P1: Local development environment starts with one command (Playwright test-only profile isolation) | Tasks | Pending |
 | INFRA-11 | P2: QA seeding and a ready-to-use Postman collection | Tasks | Pending |
 | INFRA-12 | P2: QA seeding and a ready-to-use Postman collection | Tasks | Pending |
-| INFRA-13 | P1: Local development environment starts with one command (pgAdmin DB admin UI, added post-spec at user request) | Tasks | Pending |
+| INFRA-13 | P1: Local development environment starts with one command (pgAdmin DB admin UI, added post-spec at user request) | Tasks | Verified |
 
 **ID format:** `INFRA-[NUMBER]`
 

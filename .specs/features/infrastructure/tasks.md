@@ -242,11 +242,11 @@ T12 -> T13
 
 **Done when**:
 
-- [ ] `pgadmin` service declared with `depends_on: postgres`, on the same network as `postgres`
-- [ ] `PGADMIN_DEFAULT_EMAIL`/`PGADMIN_DEFAULT_PASSWORD` are read from environment variables, not hardcoded in docker-compose.yml
-- [ ] `pgadmin` exposes a fixed port distinct from every other declared service's port
-- [ ] `pgadmin` has no named/persistent volume declared for it
-- [ ] `docker compose config -q` still exits 0 with `pgadmin` present
+- [x] `pgadmin` service declared with `depends_on: postgres`, on the same network as `postgres`
+- [x] `PGADMIN_DEFAULT_EMAIL`/`PGADMIN_DEFAULT_PASSWORD` are read from environment variables, not hardcoded in docker-compose.yml
+- [x] `pgadmin` exposes a fixed port distinct from every other declared service's port
+- [x] `pgadmin` has no named/persistent volume declared for it
+- [x] `docker compose config -q` still exits 0 with `pgadmin` present
 
 **Tests**: none
 **Gate**: build
