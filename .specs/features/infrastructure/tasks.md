@@ -269,9 +269,9 @@ T12 -> T13
 
 **Done when**:
 
-- [ ] Every variable referenced in docker-compose.yml's `environment:`/`env_file:` blocks (including pgAdmin's) has a matching placeholder line in the relevant .env.example
-- [ ] No real secret values are committed - all placeholders
-- [ ] `docker compose config -q` still exits 0 after templates are in place
+- [x] Every variable referenced in docker-compose.yml's `environment:`/`env_file:` blocks (including pgAdmin's) has a matching placeholder line in the relevant .env.example
+- [x] No real secret values are committed - all placeholders
+- [x] `docker compose config -q` still exits 0 after templates are in place
 
 **Tests**: none
 **Gate**: build
