@@ -83,16 +83,16 @@ None of the four platform specs (admin-panel, web-app, landing-page-plans, mobil
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| INFRA-01 | P1: Local development environment starts with one command | Tasks | Implementing |
-| INFRA-02 | P1: Local development environment starts with one command | Tasks | Implementing |
-| INFRA-03 | P1: Local development environment starts with one command | Tasks | Implementing |
-| INFRA-04 | P1: Local development environment starts with one command | Tasks | Implementing |
+| INFRA-01 | P1: Local development environment starts with one command | Tasks | Verified |
+| INFRA-02 | P1: Local development environment starts with one command | Tasks | Verified |
+| INFRA-03 | P1: Local development environment starts with one command | Tasks | Verified |
+| INFRA-04 | P1: Local development environment starts with one command | Tasks | Verified |
 | INFRA-05 | P1: Local development environment starts with one command | Tasks | Verified |
 | INFRA-06 | P1: Local development environment starts with one command | Tasks | Verified |
 | INFRA-07 | P1: Local development environment starts with one command | Tasks | Verified |
-| INFRA-08 | P1: Local development environment starts with one command | Tasks | Implementing |
-| INFRA-09 | P1: Local development environment starts with one command (Makefile `up` target) | Tasks | Implementing |
-| INFRA-10 | P1: Local development environment starts with one command (Playwright test-only profile isolation) | Tasks | Implementing |
+| INFRA-08 | P1: Local development environment starts with one command | Tasks | Verified |
+| INFRA-09 | P1: Local development environment starts with one command (Makefile `up` target) | Tasks | Verified |
+| INFRA-10 | P1: Local development environment starts with one command (Playwright test-only profile isolation) | Tasks | Verified |
 | INFRA-11 | P2: QA seeding and a ready-to-use Postman collection | Tasks | Implementing |
 | INFRA-12 | P2: QA seeding and a ready-to-use Postman collection | Tasks | Implementing |
 | INFRA-13 | P1: Local development environment starts with one command (pgAdmin DB admin UI, added post-spec at user request) | Tasks | Verified |

@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "promote_threshold": 2,
+  "window_days": 45,
+  "quarantine_threshold": 2,
+  "next_id": 3,
+  "lessons": [
+    {
+      "id": "L-001",
+      "key": "surviving_mutant::docker compose config q does not validate depends on targets or host port collisions do not rely on it alone to catch those regressions in compose files",
+      "text": "docker compose config -q does not validate depends_on targets or host-port collisions - do not rely on it alone to catch those regressions in compose files",
+      "signal": "surviving_mutant",
+      "scope": "infra",
+      "status": "candidate",
+      "features": [
+        "infrastructure"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "docker-compose.yml:155-156 (mutation 1) (infra)"
+      ],
+      "created": "2026-09-16T13:56:26Z",
+      "last_seen": "2026-09-16T13:56:26Z"
+    },
+    {
+      "id": "L-002",
+      "key": "surviving_mutant::makefile fail fast guards e g mobile android mobile ios have no automated exit code assertion in the gate check commands table a silent no op regression would only be caught by manual inspection",
+      "text": "Makefile fail-fast guards (e.g. mobile-android/mobile-ios) have no automated exit-code assertion in the Gate Check Commands table - a silent no-op regression would only be caught by manual inspection",
+      "signal": "surviving_mutant",
+      "scope": "infra",
+      "status": "candidate",
+      "features": [
+        "infrastructure"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "Makefile:34-47 (mutation 4) (infra)"
+      ],
+      "created": "2026-09-16T13:56:29Z",
+      "last_seen": "2026-09-16T13:56:29Z"
+    }
+  ]
+}
