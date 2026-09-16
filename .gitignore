@@ -1,0 +1,8 @@
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.playwright-mcp/
+.env
+*.env
+!*.env.example
+node_modules/
+vendor/
