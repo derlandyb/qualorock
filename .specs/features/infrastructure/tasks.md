@@ -142,7 +142,7 @@ T12 -> T13
 
 **Done when**:
 
-- [ ] Dockerfile installs Node deps and runs the dev server on a fixed port
+- [x] Dockerfile installs Node deps and runs the dev server on a fixed port
 - [ ] DEFERRED: `docker build -f website/Dockerfile .` succeeding with exit code 0 - the `website/` submodule has no source yet; re-run this check once real source lands
 
 **Tests**: none
