@@ -240,7 +240,7 @@ T43 -> T44
 
 ## Task Breakdown
 
-### T1: Organizer migration + model
+### T1: Organizer migration + model ✅
 
 **What**: Migration and Eloquent model for `Organizer` (orgName, contactName, email unique, phone, passwordHash, planTier enum, approvalState enum, rejectionReason nullable, consentGivenAt, soft-delete `deletedAt`).
 **Where**: `backend/database/migrations/xxxx_create_organizers_table.php, backend/app/Infrastructure/Persistence/Eloquent/Organizer.php, backend/app/Domain/Entities/Organizer.php, backend/app/Domain/Contracts/OrganizerRepositoryInterface.php, backend/app/Infrastructure/Persistence/Eloquent/EloquentOrganizerRepository.php`
@@ -254,10 +254,10 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Migration creates `organizers` table matching design.md's `Organizer` interface exactly, including `SoftDeletes`
-- [ ] Model casts `approvalState`/`planTier` as enums and exposes a `deletedAt` scope
-- [ ] `php artisan migrate --pretend` runs without error
-- [ ] GIVEN Clean Architecture (AD-012) THEN `Domain/Entities/Organizer.php` (plain, framework-agnostic) and `Domain/Contracts/OrganizerRepositoryInterface.php` exist, and the Eloquent model implements that interface via a matching `Infrastructure/Persistence/Eloquent/EloquentOrganizerRepository.php`
+- [x] Migration creates `organizers` table matching design.md's `Organizer` interface exactly, including `SoftDeletes`
+- [x] Model casts `approvalState`/`planTier` as enums and exposes a `deletedAt` scope
+- [x] `php artisan migrate --pretend` runs without error
+- [x] GIVEN Clean Architecture (AD-012) THEN `Domain/Entities/Organizer.php` (plain, framework-agnostic) and `Domain/Contracts/OrganizerRepositoryInterface.php` exist, and the Eloquent model implements that interface via a matching `Infrastructure/Persistence/Eloquent/EloquentOrganizerRepository.php`
 
 **Tests**: none
 **Gate**: build
