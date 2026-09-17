@@ -208,15 +208,15 @@ interface DataExportRequest {
 
 ## Coding Conventions (AD-012, AD-013)
 
-- **Clean Architecture, 4 layers**: every backend feature above follows Presentation → Application → Domain ← Infrastructure (arrows show the dependency direction — Presentation and Infrastructure both depend on Domain's contracts; Domain depends on nothing). The React admin-panel frontend mirrors this with `adminpanel/src/{domain,application,infrastructure,presentation}` — domain types/constants, use-case hooks, API-client repositories, and pure UI components respectively.
-- **No magic numbers/strings**: the Basic-tier cap (`4`), the deletion retention window (`30` days), and every status/enum string (`pending`/`approved`/`rejected`, `draft`/`published`/`cancelled`/`closed`) are named constants in `backend/app/Domain/Constants/AdminPanelConstants.php` (backend) and `adminpanel/src/domain/constants/adminPanelConstants.ts` (frontend) — never inlined as literals at the call site.
+- **Clean Architecture, 4 layers**: every backend feature above follows Presentation → Application → Domain ← Infrastructure (arrows show the dependency direction — Presentation and Infrastructure both depend on Domain's contracts; Domain depends on nothing). The React admin-panel frontend mirrors this with `admin/src/{domain,application,infrastructure,presentation}` — domain types/constants, use-case hooks, API-client repositories, and pure UI components respectively.
+- **No magic numbers/strings**: the Basic-tier cap (`4`), the deletion retention window (`30` days), and every status/enum string (`pending`/`approved`/`rejected`, `draft`/`published`/`cancelled`/`closed`) are named constants in `backend/app/Domain/Constants/AdminPanelConstants.php` (backend) and `admin/src/domain/constants/adminPanelConstants.ts` (frontend) — never inlined as literals at the call site.
 - **One class per file** across PHP and TypeScript/TSX in this feature.
 - **YAGNI**: only the use-cases/endpoints named in this document are built — no speculative CRUD beyond what ADMIN-01..28 requires.
 - **No task/ticket-referencing comments in code** (AD-014) — rationale and design decisions belong in this `design.md` and in `docs/admin-panel/architecture.md`, not in code comments.
 
 ## Documentation (AD-014)
 
-`docs/admin-panel/architecture.md` is the canonical, human-readable write-up of this feature's layering and conventions, generated/maintained during Tasks/Execute — it restates this design.md's Architecture Overview and Coding Conventions in prose for anyone browsing the `adminpanel`/`backend` source trees without `.specs/` context.
+`docs/admin-panel/architecture.md` is the canonical, human-readable write-up of this feature's layering and conventions, generated/maintained during Tasks/Execute — it restates this design.md's Architecture Overview and Coding Conventions in prose for anyone browsing the `admin`/`backend` source trees without `.specs/` context.
 
 ---
 

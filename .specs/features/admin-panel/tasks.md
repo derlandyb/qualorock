@@ -17,9 +17,9 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 Per AD-012 (Clean Architecture) and AD-013 (code quality), every task in this file follows these rules without restating them per task:
 
-- **4 layers, one direction of dependency**: `Domain` (entities + repository contracts, zero framework dependency) ← `Application` (use-cases/services/policies, orchestrates Domain via its contracts) → `Infrastructure` (Eloquent models + concrete repositories implementing Domain contracts) and `Presentation` (controllers - thin, call Application use-cases only, no direct Eloquent queries or business rules). The React `adminpanel` frontend mirrors this with `adminpanel/src/{domain,application,infrastructure,presentation}`.
+- **4 layers, one direction of dependency**: `Domain` (entities + repository contracts, zero framework dependency) ← `Application` (use-cases/services/policies, orchestrates Domain via its contracts) → `Infrastructure` (Eloquent models + concrete repositories implementing Domain contracts) and `Presentation` (controllers - thin, call Application use-cases only, no direct Eloquent queries or business rules). The React `admin` frontend mirrors this with `admin/src/{domain,application,infrastructure,presentation}`.
 - **Every persisted entity gets a matching `Domain/Contracts/<Entity>RepositoryInterface.php`.** Entities carrying real business rules (`Organizer`, `Event`, `PlanPrice`) additionally get an explicit `Domain/Entities/<Entity>.php` plain object holding those rules (approval-state transitions, event-status transitions, append-only pricing). Simple CRUD entities (`Venue`, `Promoter`, `DataExportRequest`, `EventInfoRequest`) keep a thin contract with no separate entity class beyond the Eloquent model, per YAGNI - this is not a layering violation, it's the deliberately minimal form Clean Architecture takes for a table with no behavior beyond storage.
-- **No magic numbers/strings**: the Basic-tier cap (`4`), the deletion retention window (`30` days), and every status/enum string are named constants in `backend/app/Domain/Constants/AdminPanelConstants.php` (backend) and `adminpanel/src/domain/constants/adminPanelConstants.ts` (frontend) - see the dedicated constants task below.
+- **No magic numbers/strings**: the Basic-tier cap (`4`), the deletion retention window (`30` days), and every status/enum string are named constants in `backend/app/Domain/Constants/AdminPanelConstants.php` (backend) and `admin/src/domain/constants/adminPanelConstants.ts` (frontend) - see the dedicated constants task below.
 - **One class per file**, PHP and TypeScript/TSX alike.
 - **No task/ticket-referencing comments in code** (AD-014) - rationale lives in `design.md` and `docs/admin-panel/architecture.md`, not in code comments.
 - **Database seeders are excluded from this layering** - they stay at `backend/database/seeders/*.php` as bootstrapping code, not a Clean Architecture layer, but still avoid magic numbers (reuse the same named constants).
@@ -36,21 +36,21 @@ Per AD-012 (Clean Architecture) and AD-013 (code quality), every task in this fi
 | Policy (authorization/IDOR) | unit | All branches; 1:1 to spec ACs; every listed edge case (cross-organizer access denial) | backend/tests/Unit/Policies/*Test.php | php artisan test --filter=Policy |
 | Service (PublishedEventCounter, etc.) | unit | All branches; 1:1 to spec ACs; every listed edge case (month-boundary/timezone) | backend/tests/Unit/Services/*Test.php | php artisan test --testsuite=Unit |
 | Controller / route (feature) | integration | All routes in scope: happy path + every listed edge case + error/failure paths, GIVEN/WHEN/THEN named | backend/tests/Feature/**/*Test.php | php artisan test --testsuite=Feature |
-| React component (form/table/dashboard) | unit | All branches; interaction states (loading/error/empty) covered | adminpanel/src/**/__tests__/*.test.tsx | npm --prefix adminpanel test |
-| Screen / UI layout | visual | Every screen matched to the BootstrapDash Corona reference: layout + verified color/spacing tokens + element presence confirmed by Playwright screenshot + getComputedStyle comparison | adminpanel/e2e/visual/*.spec.ts (screenshot output alongside) | npx --prefix adminpanel playwright test e2e/visual |
-| E2E flow | e2e | Full approval -> publish -> cap -> pricing flow per design.md Test Plan | adminpanel/e2e/*.spec.ts | npx --prefix adminpanel playwright test |
+| React component (form/table/dashboard) | unit | All branches; interaction states (loading/error/empty) covered | admin/src/**/__tests__/*.test.tsx | npm --prefix admin test |
+| Screen / UI layout | visual | Every screen matched to the BootstrapDash Corona reference: layout + verified color/spacing tokens + element presence confirmed by Playwright screenshot + getComputedStyle comparison | admin/e2e/visual/*.spec.ts (screenshot output alongside) | npx --prefix admin playwright test e2e/visual |
+| E2E flow | e2e | Full approval -> publish -> cap -> pricing flow per design.md Test Plan | admin/e2e/*.spec.ts | npx --prefix admin playwright test |
 | Database seeder (QA fixtures) | none | - (build gate only): idempotent, covers every enumerated status/state combination named in its task | backend/database/seeders/*.php | php artisan db:seed --class=AdminPanelSeeder |
 | Developer documentation | none | - (build gate only): documents the Clean Architecture layering and conventions for this feature | docs/admin-panel/*.md | test -f docs/admin-panel/architecture.md |
 
 ## Gate Check Commands
 
-> Generated from AD-010/AD-011 - confirm before Execute once backend/adminpanel scaffolding exists (infrastructure/tasks.md Phase 0).
+> Generated from AD-010/AD-011 - confirm before Execute once backend/admin scaffolding exists (infrastructure/tasks.md Phase 0).
 
 | Gate Level | When to Use | Command |
 | ---------- | ----------- | ------- |
-| Quick | After tasks with unit tests only (models, policies, services, React components) | php artisan test --testsuite=Unit && npm --prefix adminpanel test |
-| Full | After tasks with integration/e2e/visual tests (controllers, screens) | php artisan test && npm --prefix adminpanel test && npx --prefix adminpanel playwright test |
-| Build | After phase completion or config/migration-only tasks | php artisan test && npm --prefix adminpanel run build && npx --prefix adminpanel playwright test |
+| Quick | After tasks with unit tests only (models, policies, services, React components) | php artisan test --testsuite=Unit && npm --prefix admin test |
+| Full | After tasks with integration/e2e/visual tests (controllers, screens) | php artisan test && npm --prefix admin test && npx --prefix admin playwright test |
+| Build | After phase completion or config/migration-only tasks | php artisan test && npm --prefix admin run build && npx --prefix admin playwright test |
 
 ---
 
@@ -810,7 +810,7 @@ T43 -> T44
 ### T23: Build app shell + organizer login/approval-state screen
 
 **What**: Fixed dark sidebar (collapsible) + topbar shell, and the organizer login screen showing pending/rejected state banners, matching the Corona reference's verified tokens.
-**Where**: `adminpanel/src/presentation/layouts/AppShell.tsx, adminpanel/src/presentation/pages/Login.tsx`
+**Where**: `admin/src/presentation/layouts/AppShell.tsx, admin/src/presentation/pages/Login.tsx`
 **Depends on**: T10
 **Requirement**: ADMIN-01, ADMIN-04, ADMIN-05
 
@@ -838,8 +838,8 @@ T43 -> T44
 
 ### T24: Verify Screen: App shell + Login/Approval-state against Corona reference
 
-**What**: Navigate the running adminpanel dev build with Playwright, screenshot the login screen and the collapsed/expanded sidebar states, and compare against the Corona reference (dashboard shell + buttons + forms pages already captured this session) using `getComputedStyle` on the same properties sampled from the reference (background colors, border-radius, padding, transition duration).
-**Where**: `adminpanel/e2e/visual/login-shell.spec.ts`
+**What**: Navigate the running admin dev build with Playwright, screenshot the login screen and the collapsed/expanded sidebar states, and compare against the Corona reference (dashboard shell + buttons + forms pages already captured this session) using `getComputedStyle` on the same properties sampled from the reference (background colors, border-radius, padding, transition duration).
+**Where**: `admin/e2e/visual/login-shell.spec.ts`
 **Depends on**: T23
 **Requirement**: ADMIN-01, ADMIN-04, ADMIN-05
 
@@ -865,7 +865,7 @@ T43 -> T44
 ### T25: Build event list + event form + status-transition UI
 
 **What**: Event list as a data table, a create/edit form covering every design.md `Event` field, status-transition controls, duplicate action, and the Basic-tier cap warning message.
-**Where**: `adminpanel/src/presentation/pages/Events/EventList.tsx, adminpanel/src/presentation/pages/Events/EventForm.tsx`
+**Where**: `admin/src/presentation/pages/Events/EventList.tsx, admin/src/presentation/pages/Events/EventForm.tsx`
 **Depends on**: T14, T23
 **Requirement**: ADMIN-06, ADMIN-07, ADMIN-09, ADMIN-10, ADMIN-28
 
@@ -893,7 +893,7 @@ T43 -> T44
 ### T26: Verify Screen: Event management against Corona reference
 
 **What**: Screenshot the event list and form, compare layout/colors/elements against the Corona reference (dashboard cards/tables + buttons + forms pages).
-**Where**: `adminpanel/e2e/visual/events.spec.ts`
+**Where**: `admin/e2e/visual/events.spec.ts`
 **Depends on**: T25
 **Requirement**: ADMIN-06, ADMIN-07, ADMIN-09, ADMIN-10, ADMIN-28
 
@@ -918,7 +918,7 @@ T43 -> T44
 ### T27: Build engagement dashboard + audience/info-request screen
 
 **What**: Per-event and aggregate stat cards (views/favorites/clicks/interest), an interested-users list with mutual-friends detail, and an info-request list with a reply action.
-**Where**: `adminpanel/src/presentation/pages/Engagement/Dashboard.tsx, adminpanel/src/presentation/pages/Engagement/Audience.tsx`
+**Where**: `admin/src/presentation/pages/Engagement/Dashboard.tsx, admin/src/presentation/pages/Engagement/Audience.tsx`
 **Depends on**: T18, T19, T23
 **Requirement**: ADMIN-11, ADMIN-12, ADMIN-15, ADMIN-16
 
@@ -943,7 +943,7 @@ T43 -> T44
 ### T28: Verify Screen: Engagement & audience against Corona reference
 
 **What**: Screenshot the engagement dashboard and audience screen, compare against the Corona reference dashboard-card and table tokens.
-**Where**: `adminpanel/e2e/visual/engagement.spec.ts`
+**Where**: `admin/e2e/visual/engagement.spec.ts`
 **Depends on**: T27
 **Requirement**: ADMIN-11, ADMIN-12, ADMIN-15, ADMIN-16
 
@@ -967,7 +967,7 @@ T43 -> T44
 ### T29: Build venue profile + promoter list/form UI
 
 **What**: Venue presence edit form and a promoter table with add/edit/remove actions and per-event linking controls.
-**Where**: `adminpanel/src/presentation/pages/Venue/VenueProfile.tsx, adminpanel/src/presentation/pages/Promoters/PromoterList.tsx`
+**Where**: `admin/src/presentation/pages/Venue/VenueProfile.tsx, admin/src/presentation/pages/Promoters/PromoterList.tsx`
 **Depends on**: T15, T16, T23
 **Requirement**: ADMIN-13, ADMIN-14, ADMIN-17, ADMIN-18, ADMIN-19
 
@@ -992,7 +992,7 @@ T43 -> T44
 ### T30: Verify Screen: Venue & promoter management against Corona reference
 
 **What**: Screenshot the venue and promoter screens, compare against the Corona reference form/table/button tokens.
-**Where**: `adminpanel/e2e/visual/venue-promoters.spec.ts`
+**Where**: `admin/e2e/visual/venue-promoters.spec.ts`
 **Depends on**: T29
 **Requirement**: ADMIN-13, ADMIN-14, ADMIN-17, ADMIN-18, ADMIN-19
 
@@ -1016,7 +1016,7 @@ T43 -> T44
 ### T31: Build plan pricing screen (current price + append-only history)
 
 **What**: Current Plus price stat card, a 'Set new price' form, and an append-only history table.
-**Where**: `adminpanel/src/presentation/pages/SuperAdmin/PlanPricing.tsx`
+**Where**: `admin/src/presentation/pages/SuperAdmin/PlanPricing.tsx`
 **Depends on**: T20, T23
 **Requirement**: ADMIN-20, ADMIN-21, ADMIN-22, ADMIN-23
 
@@ -1041,7 +1041,7 @@ T43 -> T44
 ### T32: Verify Screen: Plan pricing against Corona reference
 
 **What**: Screenshot the plan pricing screen, compare against the Corona reference card/table/form tokens.
-**Where**: `adminpanel/e2e/visual/plan-pricing.spec.ts`
+**Where**: `admin/e2e/visual/plan-pricing.spec.ts`
 **Depends on**: T31
 **Requirement**: ADMIN-20, ADMIN-21, ADMIN-22, ADMIN-23
 
@@ -1065,7 +1065,7 @@ T43 -> T44
 ### T33: Build organizer data export/deletion screen
 
 **What**: Export-request button (with pending/ready status display) and an account-deletion flow with the confirm-required warning modal from design.md's Error Handling table.
-**Where**: `adminpanel/src/presentation/pages/Account/DataRights.tsx`
+**Where**: `admin/src/presentation/pages/Account/DataRights.tsx`
 **Depends on**: T22, T23
 **Requirement**: ADMIN-24, ADMIN-25, ADMIN-26, ADMIN-27
 
@@ -1090,7 +1090,7 @@ T43 -> T44
 ### T34: Verify Screen: LGPD data export/deletion against Corona reference
 
 **What**: Screenshot the data-rights screen, compare against the Corona reference badge/button tokens.
-**Where**: `adminpanel/e2e/visual/data-rights.spec.ts`
+**Where**: `admin/e2e/visual/data-rights.spec.ts`
 **Depends on**: T33
 **Requirement**: ADMIN-24, ADMIN-25, ADMIN-26, ADMIN-27
 
@@ -1316,7 +1316,7 @@ T43 -> T44
 ### T43: AdminPanelConstants (backend + frontend, no magic numbers/strings)
 
 **What**: Named constants replacing every magic literal used across this feature's tasks: `BASIC_TIER_MONTHLY_EVENT_CAP = 4`, `DELETION_RETENTION_DAYS = 30`, and the `approvalState`/`planTier`/event-`status` enum string values.
-**Where**: `backend/app/Domain/Constants/AdminPanelConstants.php, adminpanel/src/domain/constants/adminPanelConstants.ts`
+**Where**: `backend/app/Domain/Constants/AdminPanelConstants.php, admin/src/domain/constants/adminPanelConstants.ts`
 **Depends on**: T1, T3, T5
 **Requirement**: AD-013 (code quality)
 
@@ -1340,7 +1340,7 @@ T43 -> T44
 
 ### T44: docs/admin-panel/architecture.md
 
-**What**: Markdown write-up of this feature's Clean Architecture layering (AD-012) and coding conventions (AD-013), for anyone browsing the `backend`/`adminpanel` source without `.specs/` context - restates this file's Coding Conventions block and design.md's Architecture Overview in prose, with a short per-layer example drawn from the Event flow.
+**What**: Markdown write-up of this feature's Clean Architecture layering (AD-012) and coding conventions (AD-013), for anyone browsing the `backend`/`admin` source without `.specs/` context - restates this file's Coding Conventions block and design.md's Architecture Overview in prose, with a short per-layer example drawn from the Event flow.
 **Where**: `docs/admin-panel/architecture.md`
 **Depends on**: T43
 **Requirement**: AD-014 (documentation)
