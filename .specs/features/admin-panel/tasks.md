@@ -704,7 +704,7 @@ T43 -> T44
 
 ---
 
-### T19: EventInfoRequestController (design gap filled here)
+### T19: EventInfoRequestController (design gap filled here) ✅
 
 **What**: Surface consumer-submitted info/update requests (T7's `EventInfoRequest`) to the organizer and let them respond.
 **Where**: `backend/app/Presentation/Http/Controllers/Organizer/EventInfoRequestController.php`
@@ -718,9 +718,9 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] GIVEN a consumer submits an info request WHEN the organizer lists their event's requests THEN it appears - test passes
-- [ ] GIVEN an organizer responds to a request THEN the response and timestamp are stored and returned on subsequent reads - test passes
-- [ ] Gate check passes: `php artisan test --filter=EventInfoRequest`
+- [x] GIVEN a consumer submits an info request WHEN the organizer lists their event's requests THEN it appears - test passes
+- [x] GIVEN an organizer responds to a request THEN the response and timestamp are stored and returned on subsequent reads - test passes
+- [x] Gate check passes: `php artisan test --filter=EventInfoRequest`
 
 **Tests**: integration
 **Gate**: full

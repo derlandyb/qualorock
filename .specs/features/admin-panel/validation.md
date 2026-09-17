@@ -762,3 +762,114 @@ Matches design.md's "VenueController, PromoterController" component description 
 **Next steps**: None required for Phase 4 sign-off.
 
 **Post-verification update (PR #4 review)**: the automated PR review pass found 0 correctness bugs and 2 reuse/cleanup issues - `LinkPromoterRequest` duplicating `OrganizerOwnedPromoterRequest`'s promoter-resolution logic instead of extending it, and `EloquentVenueRepository::toEventEntity()` duplicating `EloquentEventRepository::toEntity()`'s Event mapping. Both were fixed in a follow-up commit (`LinkPromoterRequest extends OrganizerOwnedPromoterRequest`; shared `EventEntityMapper` used by both repositories) and re-verified: 49/49 tests still passing, `pint --test` clean. PR #4 merged with the fix included.
+
+---
+---
+
+## Validation: admin-panel Phase 5 / T19 (EventInfoRequestController) - PASS ✅
+
+# Admin Panel Validation — Phase 5, T19 only (EventInfoRequestController / ADMIN-16)
+
+**Date**: 2026-09-16
+**Spec**: `.specs/features/admin-panel/spec.md` ("P2: Track audience interest and respond to requests", AC3, lines 122-134), `.specs/features/admin-panel/tasks.md` (T19, lines 707-729)
+**Scope**: T19/ADMIN-16 only, verified as a standalone slice. T17 (`EngagementDashboardController`) and T18 (`AudienceInterestController`), the other Phase 5 tasks, are explicitly **out of scope** by design decision — both depend on tables owned by `web-app`/`mobile-app`, which haven't been executed yet — and are not flagged as missing here. Phases 1-4 (above) already verified.
+**Diff range**: `api` repo, `main..feat/admin-panel-phase-5-info-requests` (commit `9502cce`):
+```
+9502cce feat(admin-panel): add EventInfoRequestController
+```
+**Verifier**: independent sub-agent (author ≠ verifier) — no prior "done" claim trusted; all evidence re-derived from the diff, a fresh test run, and a scratch-worktree discrimination sensor.
+
+---
+
+## Task Completion
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| T19  | ✅ Done | `EventInfoRequestController` (`index`/`respond`), `ListEventInfoRequestsRequest`/`RespondToEventInfoRequestRequest`, `ListEventInfoRequests`/`RespondToEventInfoRequest` use-cases, `EventInfoRequestRepositoryInterface`/`EloquentEventInfoRequestRepository`, `Domain\Entities\EventInfoRequest`, routes wired under the existing `auth:organizer`+`organizer.approved` group. All 3 literal Done-when criteria have test evidence; 4/4 tests pass. |
+
+---
+
+## Spec-Anchored Acceptance Criteria
+
+| Criterion | Spec-defined outcome | `file:line` + assertion expression | Result |
+| --- | --- | --- | --- |
+| ADMIN-16 / spec.md AC3: WHEN a user submits an info/update request on an event THEN the system SHALL surface that request to the organizer with the ability to respond | Organizer can list requests for their own event; organizer can submit a response and have it persist and be visible on a subsequent read | `tests/Feature/Organizer/EventInfoRequestControllerTest.php:28-39` (`it_lists_info_requests_for_the_organizers_own_event`) — `$response->assertOk(); $response->assertJsonFragment(['id' => $infoRequest->id, 'message' => '...'])`; `:56-75` (`it_stores_the_organizers_response_and_returns_it_on_subsequent_reads`) — `$response->assertJsonFragment(['organizerResponse' => 'Doors open at 8pm.']); $this->assertNotNull($response->json('data.respondedAt')); $listResponse->assertJsonFragment(['organizerResponse' => 'Doors open at 8pm.'])` | ✅ PASS — both halves of the AC (surfacing + ability to respond, persisted and re-readable) asserted with exact values, not presence-only |
+| T19 Done-when #1: GIVEN a consumer submits an info request WHEN the organizer lists their event's requests THEN it appears | List response contains the request | `tests/Feature/Organizer/EventInfoRequestControllerTest.php:28-39` (see above) | ✅ PASS |
+| T19 Done-when #2: GIVEN an organizer responds to a request THEN the response and timestamp are stored and returned on subsequent reads | `organizer_response` + `responded_at` persisted; visible on the next `index` read | `EventInfoRequestControllerTest.php:56-75` (see above) — timestamp checked via `assertNotNull`, and the list read after the respond call re-asserts the persisted value, not just the `respond` endpoint's own echo | ✅ PASS |
+| T19 Done-when #3 (implicit ownership guard, not itemized separately but required by ADMIN-10's IDOR pattern this controller reuses): cross-organizer access is denied | 403 on both list and respond for a non-owning organizer; no mutation occurs | `EventInfoRequestControllerTest.php:41-54` (`it_denies_listing_info_requests_for_another_organizers_event`) — `$response->assertForbidden()`; `:77-93` (`it_denies_responding_to_another_organizers_info_request`) — `$response->assertForbidden(); $this->assertNull($infoRequest->fresh()->organizer_response)` | ✅ PASS — the respond-denial test additionally asserts no side effect occurred (not just the status code) |
+
+**Status**: ✅ All 3 literal Done-when criteria plus the ADMIN-16 AC itself covered with `file:line` + exact-value assertions. No spec-precision gaps found for this task.
+
+---
+
+## Discrimination Sensor
+
+**Isolation method**: `git worktree add --detach <scratchpad>/api-verify 9502cce` from the real `api` repo (clean `git worktree add`, not a file copy — the submodule's own `.git` handled a detached worktree fine here). Dependencies installed via `docker run --rm -v <scratch>:/app -w /app composer:2 composer install` (full dev deps, since the runtime Docker image is built `--no-dev` and lacks PHPUnit). Tests run via a long-lived `php:8.4-cli` container (`docker run -d --name qor-verify -v <scratch>:/app -w /app php:8.4-cli sleep infinity`, with `libsqlite3-dev`/`pdo_sqlite` installed once) against the SQLite in-memory test DB (`phpunit.xml`'s `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:` — no Postgres/MinIO/docker-compose stack needed for this test file). Baseline `git status --short` on the real `api/` tree was clean before sensor work; re-confirmed clean after cleanup (`docker rm -f qor-verify`, `git worktree remove --force`, no `git stash` used at any point).
+
+| # | Mutation | File | Description | Killed? |
+| - | -------- | ---- | ----------- | ------- |
+| 1 | Ownership bypass on respond | `app/Presentation/Http/Requests/Organizer/RespondToEventInfoRequestRequest.php` | `authorize()` changed from `$event !== null && app(EventPolicy::class)->owns(...)` to `$event !== null` (drops the ownership check, any authenticated organizer could respond to any event's info requests) | ✅ Killed — `it_denies_responding_to_another_organizers_info_request` failed: expected 403, got 200 |
+| 2 | Drop `responded_at` timestamp write | `app/Infrastructure/Persistence/Eloquent/EventInfoRequest.php::respond()` | Removed `'responded_at' => Carbon::now()` from the `update()` call, keeping only `organizer_response` | ✅ Killed — `it_stores_the_organizers_response_and_returns_it_on_subsequent_reads` failed: `assertNotNull($response->json('data.respondedAt'))` — asserting null is not null |
+| 3 | Ownership bypass on list | `app/Presentation/Http/Requests/Organizer/OrganizerOwnedEventRequest.php` | `authorize()` changed from `$event !== null && app(EventPolicy::class)->owns(...)` to `$event !== null` (this shared base class also backs `ListEventInfoRequestsRequest`) | ✅ Killed — `it_denies_listing_info_requests_for_another_organizers_event` failed: expected 403, got 200 |
+| 4 | Return wrong entity from `respond()` | `app/Presentation/Http/Controllers/Organizer/EventInfoRequestController.php::respond()` | Changed to discard the use-case's return value and instead re-serialize the FormRequest's **memoized, pre-respond** `eventInfoRequest()` (captured before the mutation, so it reflects stale `organizer_response: null, responded_at: null`) | ✅ Killed — `it_stores_the_organizers_response_and_returns_it_on_subsequent_reads` failed: JSON fragment `{"organizerResponse":"Doors open at 8pm."}` not found; response returned `organizerResponse: null` |
+| 5 | Drop event-scoping filter on list query | `app/Infrastructure/Persistence/Eloquent/EloquentEventInfoRequestRepository.php::findByEventId()` | Changed `EventInfoRequest::where('event_id', $eventId)->orderBy(...)` to `EventInfoRequest::query()->orderBy(...)` — returns **every** info request in the table regardless of which event was requested | ❌ **Survived** — all 4 tests still passed. This is a real gap: no test in this file creates a second event (even for the same or a different organizer) with its own info requests and asserts that listing event A's requests excludes event B's. |
+
+**Sensor result**: 4/5 mutations killed, 1 survived. Real tree confirmed untouched after cleanup (`git status --short` in `api` → clean).
+
+---
+
+## Gap Found (from the sensor)
+
+### Finding 1 — `EloquentEventInfoRequestRepository::findByEventId()` has no test proving it actually scopes by event
+
+`app/Infrastructure/Persistence/Eloquent/EloquentEventInfoRequestRepository.php:15-20` filters `where('event_id', $eventId)` correctly in the shipped code (this is not a production bug — code review confirms the `where` clause is present and correct), but the test suite has no test that would catch this filter being silently dropped or broken (e.g. a future refactor). The existing cross-organizer test (`it_denies_listing_info_requests_for_another_organizers_event`) only proves the **policy/authorization** layer blocks organizer B from listing organizer A's event — it never reaches the repository query with two events' worth of info requests in the database, so a query-level scoping bug would return 200 with leaked data from other events and no test would fail.
+
+- **Severity**: Minor-to-moderate — not a shipped defect (the `where` clause is correct today), but a real coverage gap on the one line most likely to regress silently in a future edit, and it's a plausible IDOR-adjacent data leak (same class of risk as the ownership checks that ARE well-tested).
+- **Recommendation**: add one test — e.g. `it_excludes_info_requests_from_other_events_when_listing` — that creates two events (can be the same organizer's own two events, or organizer A's event 1 and organizer A's event 2) each with an `EventInfoRequest`, lists event 1's requests, and asserts event 2's request `id`/`message` is absent from the response. This does not require a new endpoint or design change — it closes a test-coverage gap in the existing `index` action.
+
+---
+
+## Scope Creep Check
+
+All 4 tests in `EventInfoRequestControllerTest.php` map 1:1 to T19's 3 literal Done-when criteria (list-appears, respond-persists-and-rereads) plus the implicit cross-organizer-denial pattern this codebase already establishes for every other ownership-scoped resource (`EventPolicy`, `OrganizerOwnedEventRequest`, reused verbatim rather than reinvented). No speculative behavior (no pagination, no filtering/sorting params, no bulk-respond, no notification/webhook side effect) was found tested or implemented beyond what ADMIN-16's AC and T19's Done-when ask for. `EventInfoRequestController` correctly reuses the existing `OrganizerOwnedEventRequest` base class for the list route rather than duplicating ownership logic, consistent with the pattern Phase 4's validation already confirmed (`LinkPromoterRequest extends OrganizerOwnedPromoterRequest`).
+
+**Result**: ✅ No scope creep found.
+
+---
+
+## Gate Check
+
+| Gate command (tasks.md T19: `php artisan test --filter=EventInfoRequest`) | Result |
+| --- | --- |
+| Re-run fresh in the scratch worktree (see sensor isolation method above) | ✅ 4 passed (10 assertions), 0 failed |
+
+---
+
+## Requirement Traceability Update
+
+| Requirement | Previous Status | New Status |
+| ----------- | ---------------- | ---------- |
+| ADMIN-16 (EventInfoRequestController, design gap filled by T19) | Design → Execute (per spec.md's own traceability table, already marked "Done (T19)") | ✅ Verified, with 1 non-blocking coverage gap (Finding 1) |
+
+---
+
+## Summary
+
+**Overall**: ✅ **PASS** (T19 / ADMIN-16 only; T17/T18 correctly out of scope, not flagged as missing)
+
+**Spec-anchored check**: 1/1 spec AC (ADMIN-16 AC3) plus 3/3 literal T19 Done-when criteria covered with `file:line` + exact-value assertion evidence; 0 spec-precision gaps
+**Sensor**: 4/5 mutations killed — both ownership-bypass mutants (list and respond), the dropped-timestamp mutant, and the wrong-entity-returned mutant were all caught; the event-scoping-query mutant (mutation 5) **survived**, a genuine test-coverage gap (Finding 1), not a shipped defect
+**Gate**: 4/4 tests passed, 0 failed, re-run independently in an isolated scratch worktree
+
+**What works**: the controller/use-cases/repository/entity are a clean, correctly-layered slice reusing this codebase's existing `EventPolicy`/`OrganizerOwnedEventRequest` ownership pattern rather than reinventing it; both ownership checks (list and respond) are real and proven discriminating by the sensor; the response-persistence path (including the `responded_at` timestamp and returning the freshly-updated entity, not a stale one) is real and proven discriminating.
+
+---
+
+## Finding 1 — Closed
+
+Added `it_scopes_the_list_to_only_the_requested_event` to `EventInfoRequestControllerTest.php`: two of the organizer's own events, each with an `EventInfoRequest`, list event one's requests, assert event two's request is absent (`assertJsonMissing`). Commit `de08fe3` on `feat/admin-panel-phase-5-info-requests`. Full suite re-run: 5/5 in the file, 54/54 project-wide, Pint clean. This would have killed the sensor's mutation-5 (dropped event-scoping filter) mutant.
+
+**Issues found**:
+1. Finding 1 (minor-to-moderate, non-blocking): `EloquentEventInfoRequestRepository::findByEventId()`'s event-scoping `where` clause has no dedicated test — a future regression that dropped or broke it would leak other events' info requests and go undetected. Recommend adding one two-event test before this code is next touched.
+
+**Next steps**: Finding 1 should be closed with one additional test whenever this controller is next touched (e.g. alongside T17/T18 once web-app's User model lands and Phase 5 resumes in full). Does not block T19/ADMIN-16 sign-off as delivered.

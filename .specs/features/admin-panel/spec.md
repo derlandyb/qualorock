@@ -215,7 +215,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | ADMIN-13 | P2: Manage venue ("Casa de Shows") presence | Design | Pending |
 | ADMIN-14 | P2: Manage venue ("Casa de Shows") presence | Design | Pending |
 | ADMIN-15 | P2: Track audience interest and respond to requests | Design | Pending |
-| ADMIN-16 | P2: Track audience interest and respond to requests | Design | Pending |
+| ADMIN-16 | P2: Track audience interest and respond to requests | Execute | Done (T19) |
 | ADMIN-17 | P2: Manage promoters | Design | Pending |
 | ADMIN-18 | P2: Manage promoters | Design | Pending |
 | ADMIN-19 | P2: Manage promoters | Design | Pending |
