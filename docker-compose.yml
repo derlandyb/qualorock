@@ -74,6 +74,19 @@ services:
     networks:
       - qualorock
 
+  scheduler:
+    build:
+      context: ./api
+    command: ["php", "artisan", "schedule:work"]
+    environment:
+      <<: *backend-env
+    depends_on:
+      - postgres
+      - minio
+      - mailhog
+    networks:
+      - qualorock
+
   postgres:
     image: postgres:16-alpine
     environment:
