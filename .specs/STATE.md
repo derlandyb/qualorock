@@ -171,6 +171,15 @@
 - **Date**: 2026-09-16
 - **Status**: active
 
+### AD-022
+
+- **Decision**: `admin-panel` (and, by implication, `web-app`/`landing-page-plans` once their own Execute reaches this point) uses Vitest instead of Jest for unit/component tests, with React Testing Library unchanged.
+- **Reason**: Jest's CommonJS module system doesn't natively understand Vite's ESM-first output, `import.meta.env`, or `vite.config.ts` path aliases without extra transform/shim packages (`ts-jest`/`babel-jest`, `jest-environment-jsdom`, manual `moduleNameMapper` mirroring every Vite alias, a shim for `import.meta.env`). Vitest is built on Vite, reuses `vite.config.ts` unmodified, and is API-compatible with Jest's `describe`/`it`/`expect`.
+- **Trade-off**: Deviates from AD-010's literal wording ("Jest + RTL"). Test syntax and React Testing Library usage are unchanged, so this is a tooling substitution, not a rewrite risk.
+- **Scope**: Amends AD-010 for the three React surfaces (`admin-panel`, `web-app`, `landing-page-plans`) only. Backend (Pest/PHPUnit) and mobile (`kotlin.test`/XCTest/Compose) tooling are untouched.
+- **Date**: 2026-09-17
+- **Status**: active
+
 ## Handoff
 
 - **Feature**: Seven feature units exist: the original four platform features (AD-001) plus `infrastructure`, plus two cross-cutting units — `dev-logging` (AD-017) and `analytics-tracking` (AD-018).
