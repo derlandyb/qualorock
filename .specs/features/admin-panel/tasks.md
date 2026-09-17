@@ -743,10 +743,10 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] GIVEN a super_admin sets a new Plus price WHEN reading history THEN the new row appears as current and the previous row's `effectiveTo` is set - test passes
-- [ ] GIVEN a non-numeric or negative amount WHEN submitted THEN the response is 422 - test passes
-- [ ] GIVEN an organizer (not super_admin) WHEN calling either endpoint THEN the response is 403 - test passes
-- [ ] Gate check passes: `php artisan test --filter=PlanPricing`
+- [x] GIVEN a super_admin sets a new Plus price WHEN reading history THEN the new row appears as current and the previous row's `effectiveTo` is set - test passes
+- [x] GIVEN a non-numeric or negative amount WHEN submitted THEN the response is 422 - test passes
+- [x] GIVEN an organizer (not super_admin) WHEN calling either endpoint THEN the response is 403 - test passes
+- [x] Gate check passes: `php artisan test --filter=PlanPricing`
 
 **Tests**: integration
 **Gate**: full

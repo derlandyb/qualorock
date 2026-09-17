@@ -873,3 +873,154 @@ Added `it_scopes_the_list_to_only_the_requested_event` to `EventInfoRequestContr
 1. Finding 1 (minor-to-moderate, non-blocking): `EloquentEventInfoRequestRepository::findByEventId()`'s event-scoping `where` clause has no dedicated test — a future regression that dropped or broke it would leak other events' info requests and go undetected. Recommend adding one two-event test before this code is next touched.
 
 **Next steps**: Finding 1 should be closed with one additional test whenever this controller is next touched (e.g. alongside T17/T18 once web-app's User model lands and Phase 5 resumes in full). Does not block T19/ADMIN-16 sign-off as delivered.
+
+---
+
+## Validation: admin-panel Phase 6 / T20 (PlanPricingController) - PASS ✅
+
+# Admin Panel Validation — Phase 6, T20 only (PlanPricingController / ADMIN-20..23)
+
+**Date**: 2026-09-17
+**Spec**: `.specs/features/admin-panel/spec.md` ("P2: Manage plan pricing", AC1-4, lines 155-168), `.specs/features/admin-panel/design.md` ("PlanPricingController", lines 150-155), `.specs/features/admin-panel/tasks.md` (T20, lines 732-754)
+**Scope**: T20/ADMIN-20..23 only, verified as a standalone slice.
+**Diff range**: `api` repo, `main..feat/admin-panel-phase-6-plan-pricing` (commit `ceeebfd`):
+```
+ceeebfd feat(admin-panel): add PlanPricingController with append-only history
+```
+**Verifier**: independent sub-agent (author ≠ verifier) — no prior "done" claim trusted; all evidence re-derived from the diff, a fresh Docker-only test run, and a scratch-worktree discrimination sensor.
+
+---
+
+## Task Completion
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| T20  | ✅ Done | `PlanPricingController` (`index`/`store`), `SetPlanPriceRequest`, `GetPlanPriceHistory`/`SetPlanPrice` use-cases, `PlanPriceRepositoryInterface`/`EloquentPlanPriceRepository` (append-only, `whereNull('effective_to')` + `DB::transaction` in `setNewCurrent`), `PlanPricingPolicy`, routes wired under `super-admin` prefix, `AppServiceProvider` binding added. All 3 literal Done-when criteria have test evidence; 4/4 tests pass. |
+
+---
+
+## Spec-Anchored Acceptance Criteria
+
+| Criterion | Spec-defined outcome | `file:line` + assertion expression | Result |
+| --- | --- | --- | --- |
+| ADMIN-20 / spec.md AC1: WHEN a Super Admin submits a new price THEN the system SHALL save it as current and preserve every prior price with its effective date range | New row current (`effective_to: null`), previous row's `effective_to` set | `tests/Feature/SuperAdmin/PlanPricingControllerTest.php:43-54` (`it_sets_a_new_plus_price_and_closes_the_previous_one`) — `$response->assertJsonFragment(['amount' => 2990, 'effectiveTo' => null]); $this->assertNotNull($previous->fresh()->effective_to)` | ✅ PASS, with a caveat: the test doesn't re-issue a GET to "read history" as literally worded (T20 Done-when #1) — it checks equivalent DB state directly. Functionally equivalent evidence, but not a byte-for-byte match to the GIVEN/WHEN/THEN wording. |
+| ADMIN-21 / spec.md AC2: WHEN a Super Admin opens the plan-pricing view THEN the system SHALL show the current price and full history | GET returns both current and historical rows | `PlanPricingControllerTest.php:19-39` (`it_lists_current_and_historical_plan_prices`) — `$response->assertJsonCount(2, 'data'); $response->assertJsonFragment(['id' => $current->id, 'amount' => 2990, 'effectiveTo' => null]); $response->assertJsonFragment(['id' => $previous->id, 'amount' => 1990])` | ✅ PASS |
+| ADMIN-22 / spec.md AC3: IF a Super Admin submits an invalid price (non-numeric, negative, or zero) THEN the system SHALL reject and identify the problem | 422 for `'abc'`, `-5`, `0` | `PlanPricingControllerTest.php:58-68` (`it_rejects_a_non_numeric_or_negative_amount`) — loops all three invalid values, `$response->assertStatus(422)` each | ✅ PASS — covers all three spec-named invalid cases (non-numeric, negative, zero), matching `min:1` + `integer` rules in `SetPlanPriceRequest.php:21` |
+| ADMIN-23 / spec.md AC4: THE system SHALL restrict plan-pricing management to Super Admin accounts only | 403 for a non-super-admin on both endpoints | `PlanPricingControllerTest.php:71-83` (`it_denies_a_non_super_admin`) — `$response->assertForbidden()` on both GET and POST for an `Organizer` actor | ✅ PASS |
+| T20 Done-when #1 (literal wording: "WHEN reading history THEN the new row appears as current...") | See ADMIN-20 above | Same test, same caveat | ✅ PASS (see caveat above) |
+| T20 Done-when #2: non-numeric/negative → 422 | See ADMIN-22 above | Same test | ✅ PASS |
+| T20 Done-when #3: organizer → 403 on either endpoint | See ADMIN-23 above | Same test | ✅ PASS |
+
+**Status**: 4/4 spec ACs and 3/3 literal Done-when criteria covered with `file:line` + exact-value assertions. One minor spec-precision gap noted (Done-when #1's literal "WHEN reading history" step isn't exercised as a second GET call in the test) — not blocking, since the asserted DB state (`previous->fresh()->effective_to` not null, new row's response shows `effectiveTo: null`) is the same fact the GET endpoint would surface, and `it_lists_current_and_historical_plan_prices` separately proves the GET endpoint itself works correctly.
+
+---
+
+## Discrimination Sensor
+
+**Isolation method**: `git -C api worktree add --detach <scratchpad>/pp-scratch ceeebfd` (the branch itself was already checked out in the main worktree, so a detached worktree at the commit was used instead — equally isolated, no `git stash`). A throwaway Dockerfile (`Dockerfile.verifier`, untracked, scratch-only) removed the `--no-dev` flag from the vendor stage's `composer install` so PHPUnit would be present (the shipped `Dockerfile` builds `--no-dev` and lacks it), and the real `api/.env` was copied in for `APP_KEY`/env resolution. Images built with `docker build -f Dockerfile.verifier -t verifier-scratch <scratch>` and tests run via `docker run --rm verifier-scratch php artisan test --filter=PlanPricing` against the SQLite in-memory test DB (`phpunit.xml`'s `DB_CONNECTION=sqlite`). Baseline (unmutated scratch checkout) confirmed 4/4 passing before any mutation. Real `api/` tree confirmed clean (`git status --porcelain`) both before and after; worktree and throwaway image removed at the end (`git worktree remove --force`, `docker rmi verifier-scratch`).
+
+| # | Mutation | File | Description | Killed? |
+| - | -------- | ---- | ----------- | ------- |
+| 1 | Drop `whereNull('effective_to')` filter in `setNewCurrent` | `app/Infrastructure/Persistence/Eloquent/EloquentPlanPriceRepository.php` | Removed the `whereNull('effective_to')` clause from the close-previous-row update, so the update targets **every** row for the tier (open and already-closed) instead of only the currently-open one | ❌ **Survived** — all 4 tests still passed. Real gap: no test seeds a *third* price change (i.e., a tier with one already-closed historical row plus one open row) before calling `store` again, so nothing catches the update silently overwriting an already-closed row's `effective_to` with the new date — which would corrupt append-only history integrity, the exact property AD-006/ADMIN-20 exist to guarantee. |
+| 2 | Weaken `min:1` to `min:0` in validation | `app/Presentation/Http/Requests/SuperAdmin/SetPlanPriceRequest.php` | Allowed `amount: 0` to pass validation | ✅ Killed — `it_rejects_a_non_numeric_or_negative_amount` failed: expected 422, got 201 for the `0` case |
+| 3 | Bypass the Super Admin policy check | `app/Application/Policies/PlanPricingPolicy.php` | Both `view()` and `set()` changed to `return true;` unconditionally | ✅ Killed — `it_denies_a_non_super_admin` failed: expected 403, got 200 |
+| 4 | Flip ordering in `history()` | `app/Infrastructure/Persistence/Eloquent/EloquentPlanPriceRepository.php` | Changed `orderByDesc('effective_from')` to ascending `orderBy('effective_from')` | ❌ **Survived** — all 4 tests still passed. Real gap: `it_lists_current_and_historical_plan_prices` uses `assertJsonCount` + `assertJsonFragment`, neither of which checks array order, so a reversed (or any) ordering of the history response goes undetected. |
+| 5 | Swap `id`/`amount` fields in `toResponse()` | `app/Presentation/Http/Controllers/SuperAdmin/PlanPricingController.php` | `'id' => $planPrice->amount` and `'amount' => $planPrice->id` | ✅ Killed — 2 tests failed (`it_sets_a_new_plus_price_and_closes_the_previous_one`, and implicitly the fragment-matching assertion), confirming exact-value field mapping is checked |
+
+**Sensor result**: 3/5 mutations killed, 2 survived. Real tree confirmed untouched after cleanup (`git -C api status --porcelain` → clean; `git -C api worktree list` → no leftover scratch entry).
+
+---
+
+## Gaps Found (from the sensor)
+
+### Finding 1 — `setNewCurrent`'s `whereNull('effective_to')` guard has no test proving it protects already-closed rows
+
+`app/Infrastructure/Persistence/Eloquent/EloquentPlanPriceRepository.php:49-51` correctly scopes the close-previous-row update to only the currently-open row (`whereNull('effective_to')`), but no test exercises a scenario with more than one historical (already-closed) row present when a new price is set. If this filter were ever dropped or weakened, the query would retroactively overwrite older, already-closed rows' `effective_to` values — silently corrupting the append-only audit trail that AD-006/ADMIN-20 exist to guarantee — and no test would catch it today.
+
+- **Severity**: Moderate — this is the core data-integrity property the whole feature (design.md's "Price history storage" Tech Decision) is built to protect, and the sensor shows it currently rests on an untested line.
+- **Recommendation**: extend `it_sets_a_new_plus_price_and_closes_the_previous_one` (or add a new test) to seed a tier with one already-closed historical row (`effective_to` set to some past date) plus one open row, call `store` again, and assert the already-closed row's `effective_to` is unchanged after the call.
+
+### Finding 2 — `history()`'s descending order is not asserted
+
+`app/Infrastructure/Persistence/Eloquent/EloquentPlanPriceRepository.php:40` (`orderByDesc('effective_from')`) has no test verifying the response is actually ordered newest-first (or any deterministic order) — `it_lists_current_and_historical_plan_prices` uses order-insensitive assertions (`assertJsonCount`, `assertJsonFragment`).
+
+- **Severity**: Minor — spec/design don't explicitly mandate order in the API contract, but a UI consuming this endpoint (ADMIN-21's "show current + history" view) would likely assume newest-first, and a regression here would be silent.
+- **Recommendation**: add an order-sensitive assertion (e.g. compare `$response->json('data.0.id')` to the expected current row's id) to the existing list test.
+
+---
+
+## Scope Creep Check
+
+All 4 tests in `PlanPricingControllerTest.php` map 1:1 to T20's 3 literal Done-when criteria plus the ADMIN-21 "list" AC. No speculative behavior (no pagination, no tier parameter exposed via the API beyond the `PlanTier::Plus` default, no currency formatting/display logic, no soft-delete/undo of price history) was found tested or implemented beyond what ADMIN-20..23 and T20's Done-when ask for. The controller reuses the codebase's existing FormRequest+Policy pattern rather than inventing a new authorization mechanism.
+
+**Result**: ✅ No scope creep found.
+
+---
+
+## Gate Check
+
+| Gate command (tasks.md T20: `php artisan test --filter=PlanPricing`) | Result |
+| --- | --- |
+| `docker compose exec backend php artisan test --filter=PlanPricing` (branch code rebuilt into the `backend` image, container only, never host) | ✅ 4 passed (16 assertions), 0 failed |
+| `docker compose exec backend php artisan test` (full suite, regression check) | ✅ 58 passed (161 assertions), 0 failed — matches the expected 54 (prior baseline) + 4 (new PlanPricing tests) |
+| `docker compose exec backend vendor/bin/pint --test` (dry-run style check) | ✅ Clean — 151 files, no style violations |
+
+---
+
+## Requirement Traceability Update
+
+| Requirement | Previous Status | New Status |
+| ----------- | ---------------- | ---------- |
+| ADMIN-20 (PlanPricingController: set price, preserve history) | Design → Execute | ✅ Verified, with 1 non-blocking coverage gap (Finding 1) |
+| ADMIN-21 (PlanPricingController: view current + history) | Design → Execute | ✅ Verified, with 1 non-blocking coverage gap (Finding 2) |
+| ADMIN-22 (invalid price rejected) | Design → Execute | ✅ Verified, no gaps |
+| ADMIN-23 (Super Admin only) | Design → Execute | ✅ Verified, no gaps |
+
+---
+
+## Summary
+
+**Overall**: ✅ **PASS** (T20 / ADMIN-20..23)
+
+**Spec-anchored check**: 4/4 spec ACs plus 3/3 literal T20 Done-when criteria covered with `file:line` + exact-value assertion evidence; 1 minor spec-precision gap noted (Done-when #1's literal "read history" step not re-exercised as a second GET, though equivalent state is asserted directly) — not blocking.
+**Sensor**: 3/5 mutations killed — validation weakening, policy bypass, and field-mapping mutants were all caught; the append-only-integrity guard (mutation 1) and history ordering (mutation 4) **survived**, both genuine test-coverage gaps (Findings 1 and 2), neither a shipped defect (the production code is correct — `git diff` shows the `whereNull` filter and `orderByDesc` call are present and correct in the merged code; only the *tests* don't discriminate against their removal).
+**Gate**: 4/4 `PlanPricing`-filtered tests passed, 58/58 full suite passed (matches expected baseline+4), Pint clean — all re-run independently in the `backend` Docker container, never on host.
+
+**What works**: the controller/use-cases/repository/policy are a clean, correctly-layered Presentation→Application→Domain←Infrastructure slice; the append-only history mechanism (never `UPDATE`d in place except to close `effective_to`, wrapped in `DB::transaction`) is implemented correctly per design.md's Tech Decision; validation and authorization are both real and proven discriminating by the sensor.
+
+**Issues found** (both non-blocking, recommended before this code is next touched):
+1. Finding 1 (moderate): `setNewCurrent`'s `whereNull('effective_to')` guard — the core append-only-integrity protection — has no test proving it doesn't corrupt already-closed historical rows on a third-or-later price change.
+2. Finding 2 (minor): `history()`'s `orderByDesc('effective_from')` ordering is not asserted by any test.
+
+**Next steps**: Close Finding 1 and Finding 2 with two additional test assertions (or one combined test) the next time `PlanPricingControllerTest.php` is touched. Neither blocks T20/ADMIN-20..23 sign-off as delivered — the shipped code is correct; only the tests' discriminating power on these two lines is currently weaker than ideal.
+
+---
+
+### Findings 1 & 2 — Closed same session
+
+Commit `4c5f491` on `feat/admin-panel-phase-6-plan-pricing` (`test(admin-panel): close Phase 6 verifier coverage gaps`):
+
+- Finding 1: added `it_leaves_already_closed_historical_rows_untouched_when_setting_a_new_price`, seeding an already-closed historical row plus an open row before calling `store`, asserting the already-closed row's `effective_to` is unchanged.
+- Finding 2: added an order-sensitive assertion (`array_column($response->json('data'), 'id')` compared against `[$current->id, $previous->id]`) to `it_lists_current_and_historical_plan_prices`.
+
+Both mutations were manually re-applied to `EloquentPlanPriceRepository.php` (dropping the `whereNull('effective_to')` guard; changing `orderByDesc` to `orderBy`) and confirmed to now fail the updated tests, then reverted. Full suite re-run: 59/59 passed (165 assertions), Pint clean — all inside the `backend` Docker container. No open findings remain blocking sign-off.
+
+---
+
+### Post-verification: PR #6 code review and fixes (commit `fb17efb`)
+
+PR #6 (`derlandyb/qualorock-api`) was opened for this branch and reviewed by an independent code-reviewer sub-agent before merge. It found no blocking issues but two should-fix gaps beyond what the Verifier's sensor covered:
+
+1. **Concurrency**: `setNewCurrent()`'s close-then-create wasn't serialized against concurrent requests — two simultaneous `POST`s could each leave the tier with an "open" row (`effective_to IS NULL`), violating the append-only "exactly one current row" invariant the feature exists to guarantee.
+2. **Overflow**: `amount` had no upper bound; a very large value would overflow the `unsignedInteger` column and surface as a 500 instead of a 422.
+
+Both were closed in commit `fb17efb` (`fix(admin-panel): enforce plan-price invariants found in review`):
+- New migration `2026_09_17_000001_add_unique_open_plan_price_per_tier.php` adds a partial unique index (`UNIQUE (tier) WHERE effective_to IS NULL`) so the invariant is enforced by the database, not application logic alone.
+- `setNewCurrent()`'s close-update now takes `lockForUpdate()`.
+- `AdminPanelConstants::PLAN_PRICE_MAX_CENTS` (100,000.00 BRL) added and enforced by `SetPlanPriceRequest`'s `max:` rule.
+- `history()` gained an `orderByDesc('id')` tiebreaker (nitpick #3 from the same review, for same-second price changes).
+- Three new tests: an unauthenticated-guest 403 case, an overflow-rejection case, and a test proving the DB-level unique constraint rejects a second open row for the same tier.
+
+Full suite after this commit: 62/62 passed (169 assertions), Pint clean. CI (`lint`, `test`, `quality-gate`) passed on GitHub Actions. PR #6 merged to `main` as `4a41307`.
+
+**Final overall verdict: ✅ PASS.** No open findings remain.

@@ -219,10 +219,10 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | ADMIN-17 | P2: Manage promoters | Design | Pending |
 | ADMIN-18 | P2: Manage promoters | Design | Pending |
 | ADMIN-19 | P2: Manage promoters | Design | Pending |
-| ADMIN-20 | P2: Manage plan pricing | Design | Pending |
-| ADMIN-21 | P2: Manage plan pricing | Design | Pending |
-| ADMIN-22 | P2: Manage plan pricing | Design | Pending |
-| ADMIN-23 | P2: Manage plan pricing | Design | Pending |
+| ADMIN-20 | P2: Manage plan pricing | Execute | Done (T20) |
+| ADMIN-21 | P2: Manage plan pricing | Execute | Done (T20) |
+| ADMIN-22 | P2: Manage plan pricing | Execute | Done (T20) |
+| ADMIN-23 | P2: Manage plan pricing | Execute | Done (T20) |
 | ADMIN-24 | P2: Organizer data export and deletion (LGPD) | Design | Pending |
 | ADMIN-25 | P2: Organizer data export and deletion (LGPD) | Design | Pending |
 | ADMIN-26 | P2: Organizer data export and deletion (LGPD) | Design | Pending |
