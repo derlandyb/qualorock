@@ -223,10 +223,10 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | ADMIN-21 | P2: Manage plan pricing | Execute | Done (T20) |
 | ADMIN-22 | P2: Manage plan pricing | Execute | Done (T20) |
 | ADMIN-23 | P2: Manage plan pricing | Execute | Done (T20) |
-| ADMIN-24 | P2: Organizer data export and deletion (LGPD) | Design | Pending |
-| ADMIN-25 | P2: Organizer data export and deletion (LGPD) | Design | Pending |
-| ADMIN-26 | P2: Organizer data export and deletion (LGPD) | Design | Pending |
-| ADMIN-27 | P2: Organizer data export and deletion (LGPD) | Design | Pending |
+| ADMIN-24 | P2: Organizer data export and deletion (LGPD) | Execute | Verified (T21) |
+| ADMIN-25 | P2: Organizer data export and deletion (LGPD) | Execute | Verified (T22) |
+| ADMIN-26 | P2: Organizer data export and deletion (LGPD) | Execute | Verified (T22) |
+| ADMIN-27 | P2: Organizer data export and deletion (LGPD) | Execute | Verified (T22) |
 | ADMIN-28 | P1: Register and manage events (Basic-tier event-cap enforcement, AD-005) | Design | Pending |
 
 **ID format:** `ADMIN-[NUMBER]`

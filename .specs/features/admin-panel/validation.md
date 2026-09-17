@@ -1024,3 +1024,108 @@ Both were closed in commit `fb17efb` (`fix(admin-panel): enforce plan-price inva
 Full suite after this commit: 62/62 passed (169 assertions), Pint clean. CI (`lint`, `test`, `quality-gate`) passed on GitHub Actions. PR #6 merged to `main` as `4a41307`.
 
 **Final overall verdict: ✅ PASS.** No open findings remain.
+
+---
+
+## Phase 7 Validation
+
+**Date**: 2026-09-17
+**Spec**: `.specs/features/admin-panel/spec.md`
+**Diff range**: `main..HEAD` on `feat/admin-panel-phase-7-lgpd-data-export-deletion` (commits `e2a99bd`, `23bd40e`, `4101c84`)
+**Verifier**: independent sub-agent (author ≠ verifier)
+
+### Task Completion
+
+| Task | Status  | Notes |
+| ---- | ------- | ----- |
+| T21 (OrganizerDataController: export) | ✅ Done | All 3 Done-when boxes checked in `tasks.md`; re-derived independently below |
+| T22 (OrganizerDataController: account deletion + Super Admin override) | ✅ Done | All 5 Done-when boxes checked in `tasks.md`; re-derived independently below |
+
+### Spec-Anchored Acceptance Criteria (P2: Organizer data export and deletion (LGPD))
+
+| Criterion (WHEN X THEN Y) | Spec-defined outcome | `file:line` + assertion | Result |
+| --- | --- | --- | --- |
+| ADMIN-24: WHEN an organizer requests a data export THEN the system SHALL generate a downloadable export of their account, venue, event, and promoter data | A `DataExportRequest` reaches `ready` with a non-null `downloadUrl`, and the archive contains only the requesting organizer's own account/venue/event/promoter rows | `tests/Feature/Organizer/OrganizerDataExportTest.php:38-51` - `$response->assertStatus(202)`, `assertJsonFragment(['status' => Pending])`, `Queue::assertPushed(...)` targeting the right organizer/request ids; `tests/Feature/Jobs/GenerateOrganizerDataExportJobTest.php:47-52` - `assertSame(DataExportRequestStatus::Ready, ...)`, `assertNotNull($exportRequest->download_url)`; `:56-88` - `assertSame('Own Venue', ...)`, `assertCount(1, $archive['events'])`, `assertSame($organizer->id, $archive['organizer']['id'])` proves account+venue+event+promoter scoping | ✅ PASS |
+| ADMIN-25: WHEN an organizer requests account deletion THEN the system SHALL deactivate the account, remove their events from consumer-facing listings, and delete their personal data within a defined retention window | Soft-delete (`deleted_at` set, excluded from default `Organizer::where(...)` lookups → login fails); `hidden_at` set on venue/events/promoters; personal fields (`org_name`/`contact_name`/`email`/`phone`/`password_hash`) hard-scrubbed exactly at the 30-day (`AdminPanelConstants::DELETION_RETENTION_DAYS`) boundary, not before | `tests/Feature/Organizer/OrganizerDataDeletionTest.php:30-44` - `assertSoftDeleted('organizers', ...)`, `assertNotNull($venue->fresh()->hidden_at)` / `$event->fresh()->hidden_at` / `$promoter->fresh()->hidden_at`; `tests/Feature/Console/HardDeleteRetainedOrganizersCommandTest.php:16-33` - `assertSame(PURGED_PERSONAL_DATA_PLACEHOLDER, $organizer->org_name)`, `assertNotSame('acme@example.com', $organizer->email)`; `:36-48` - at 10 days, `assertSame('Acme Events', $organizer->org_name)` (untouched) proves the window boundary is honored, not just "eventually purges" | ✅ PASS, with 1 scope note (below) |
+| ADMIN-26: IF an organizer's account has an upcoming published event at the time of a deletion request THEN the system SHALL warn them of the consequence before confirming deletion | 409 with `{"error": "confirmation_required"}` when an upcoming published event exists and `confirm` isn't `true`; the same request succeeds (204) once `confirm: true` is sent | `tests/Feature/Organizer/OrganizerDataDeletionTest.php:47-61` - `assertStatus(409)`, `assertJsonFragment(['error' => 'confirmation_required'])`, `assertDatabaseHas('organizers', [..., 'deleted_at' => null])` (nothing committed on the blocked path); `:64-78` - `assertStatus(204)` + `assertSoftDeleted(...)` after resubmitting with `confirm: true` | ✅ PASS |
+| ADMIN-27: THE system SHALL restrict an organizer's data export/deletion actions to that organizer's own account, with a Super Admin override available for support cases | Self-service routes act only on `$request->user('organizer')->id` (no organizer-id parameter exists to substitute another account); the Super Admin override route performs the identical flow but is 403 for anyone without the `super_admin` guard | `app/Presentation/Http/Controllers/Organizer/OrganizerDataController.php:823,830` - `(int) $request->user('organizer')->id` used for both `export()` and `delete()`, structurally precluding IDOR on the self-service path; `tests/Feature/Organizer/OrganizerDataDeletionTest.php:82-94` - `assertStatus(204)` + `assertSoftDeleted(...)` for a `super_admin`-acted deletion; `:97-108` - `assertForbidden()` + `assertDatabaseHas([..., 'deleted_at' => null])` when a non-super-admin organizer calls the override route for another organizer's id | ✅ PASS |
+
+**Status**: ✅ All 4 ACs covered with exact-value evidence; 1 non-blocking scope note (see below), no spec-precision gaps.
+
+**Scope note (not a defect):** ADMIN-25's "remove their events from consumer-facing listings" clause is only half-verifiable from this repo slice: `DeleteOrganizerAccount::handle()` (`app/Application/UseCases/OrganizerData/DeleteOrganizerAccount.php:29-43`) sets `hidden_at` on the organizer's venue/events/promoters exactly as design.md's Risks table prescribes ("cascade-hide ... from consumer listings"), and that mechanism is what's tested. But `grep -rln hidden_at app/` outside this feature's own files, and a scan of `app/Presentation/Http/Controllers/` for any actual consumer-facing listing controller, both come back empty — this repo currently has only `Organizer/*` and `SuperAdmin/*` controllers; no public/consumer event- or venue-listing endpoint exists yet to *read* and honor `hidden_at`. Per `spec.md`'s own Out-of-Scope table, "Consumer-facing event discovery... [is] owned by `.specs/features/mobile-app/spec.md` and `.specs/features/web-app/spec.md`" — so this is a deliberate forward-compatible hook (admin-panel's job ends at flagging the row), not a gap in T21/T22's own scope. Flagging so whoever builds those consumer-facing listing queries knows `hidden_at` is the contract to honor.
+
+### Edge Cases
+
+- [x] Deletion request with an upcoming published event and no `confirm` → 409, nothing committed (`OrganizerDataDeletionTest.php:47-61`)
+- [x] Deletion request repeated with `confirm: true` → succeeds despite the upcoming published event (`OrganizerDataDeletionTest.php:64-78`)
+- [x] Organizer with no venue at all (implicit in `DeleteOrganizerAccount::handle()`'s `$venue !== null` guards) — not explicitly tested by a dedicated case, but the production code path is defensive; low risk given every test organizer in this suite is created with a venue
+
+### Discrimination Sensor
+
+Ran in an isolated git worktree (`git worktree add <scratch> HEAD`), mutated file copies `docker cp`'d into the running `qornovo-backend-1` container one at a time, filtered tests run per mutation, then the original file `docker cp`'d back before the next mutation. Real working tree (`git -C api status --porcelain`) was empty before, during, and after — confirmed via worktree removal and a final full-suite + Pint re-run against the restored container.
+
+| Mutation | File:line | Description | Killed? |
+| --- | --- | --- | --- |
+| 1 | `app/Application/UseCases/OrganizerData/DeleteOrganizerAccount.php:25` | Flipped `! $confirm` → `$confirm` in the upcoming-published-event guard (inverts when the 409 fires) | ✅ Killed — `it_deletes_with_confirmation_despite_an_upcoming_published_event` and `it_requires_confirmation_when_there_is_an_upcoming_published_event` both failed (409 vs 204 mismatch) |
+| 2 | `app/Infrastructure/Jobs/GenerateOrganizerDataExportJob.php:57` | Changed the success path's `'status' => DataExportRequestStatus::Ready` to `Failed` | ✅ Killed — `it_marks_the_request_ready_with_a_download_url` failed (`assertSame(Ready, ...)` got `Failed`) |
+| 3 | `app/Application/UseCases/OrganizerData/DeleteOrganizerAccount.php:41-43` | Removed the promoter `hidden_at` update loop entirely | ✅ Killed — `it_soft_deletes_and_hides_data_when_there_is_no_upcoming_published_event` failed (`assertNotNull($promoter->fresh()->hidden_at)` got null) |
+
+**Sensor depth**: lightweight (3 targeted mutations, proportional to a P2/support-flow feature, not a P0 payment/auth path)
+**Result**: 3/3 killed - PASS ✅
+
+### Code Quality
+
+| Principle | Status |
+| --- | --- |
+| Minimum code | ✅ — no speculative endpoints beyond export/delete/super-admin-override; retention purge is a single use-case + command |
+| Surgical changes | ✅ — `Event.php`/`Venue.php`/`Promoter.php` model edits are exactly the `hidden_at` fillable+cast additions the new migrations require, nothing else touched |
+| No scope creep | ✅ — matches T21/T22 + the IDOR fix commit exactly; no unrelated refactors in the diff |
+| Matches patterns | ✅ — `OrganizerDataController` mirrors `OrganizerApprovalController`'s/`PlanPricingController`'s Presentation→Application→Domain←Infrastructure layering and the `SuperAdminOrganizerPolicy` / `$request->user('super_admin')` authorization idiom already established in Phase 1/Phase 6 |
+| Spec-anchored outcome check (asserted values match spec) | ✅ — see table above; every assertion targets the spec's precise outcome (204/409/ready/hidden_at/purged fields), no vague "assertion exists" cases |
+| Per-layer Coverage Expectation met (domain 1:1 ACs; routes happy+edge+error) | ✅ — `DeleteOrganizerAccount`/`ExportOrganizerData`/`PurgeRetainedOrganizerPersonalData` each map 1:1 to their AC; the routes cover happy (no upcoming event), edge (upcoming event + confirm), and error (403 non-super-admin, 409 unconfirmed) paths |
+| Every test maps to a spec requirement — no unclaimed tests | ✅ — all 11 new tests trace to ADMIN-24..27 or T21/T22's literal Done-when bullets |
+| Documented guidelines followed | ✅ — `design.md`'s Coding Conventions (AD-012/AD-013): named constants (`DELETION_RETENTION_DAYS`, `DATA_EXPORT_DOWNLOAD_URL_TTL_MINUTES`, `PURGED_PERSONAL_DATA_PLACEHOLDER`), one class per file, Clean Architecture layering all followed |
+
+### Gate Check
+
+- **Gate command**: `php artisan test` (full suite) — run via `docker exec qornovo-backend-1 php artisan test`, container rebuilt from current HEAD before running
+- **Result**: 73 passed (208 assertions), 0 failed, 0 skipped
+- **Test count before feature**: 62 (Phase 6 baseline, per this file's own Phase 6 section)
+- **Test count after feature**: 73
+- **Delta**: +11 new tests (1 `OrganizerDataExportTest` + 2 `GenerateOrganizerDataExportJobTest` + 5 `OrganizerDataDeletionTest` + 3 `HardDeleteRetainedOrganizersCommandTest`) — exact match, no unexplained deltas, no deletions
+- **Skipped tests**: none
+- **Failures**: none
+- **Pint**: `./vendor/bin/pint --test` clean across 174 files
+
+### IDOR Fix Verification (commit `23bd40e`)
+
+Confirmed present in current code: `GenerateOrganizerDataExportJob.php:353` stores the archive under `bin2hex(random_bytes(16)).'.json'` (not the sequential `DataExportRequest` id), and `:358-361` calls `Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(AdminPanelConstants::DATA_EXPORT_DOWNLOAD_URL_TTL_MINUTES))` (a signed, time-limited URL) rather than the earlier unsigned `->url($path)`. `git show 23bd40e` confirms this was a same-session self-caught fix (found by an automated commit security review) with updated tests (`GenerateOrganizerDataExportJobTest.php` no longer asserts a predictable id-based path). Re-verified independently: the current file content matches this description exactly.
+
+### Fix Plans
+
+None — no blocking or non-blocking findings requiring a fix task. The one scope note above is informational (a cross-feature integration contract for future work), not a defect in this phase's own scope.
+
+### Requirement Traceability Update
+
+| Requirement | Previous Status | New Status |
+| --- | --- | --- |
+| ADMIN-24 (organizer data export) | Design → Execute | ✅ Verified, no gaps |
+| ADMIN-25 (account deletion: deactivate, hide, retention-window purge) | Design → Execute | ✅ Verified, 1 non-blocking scope note (consumer-listing filter is a future consumer of `hidden_at`, out of admin-panel's scope) |
+| ADMIN-26 (upcoming-event confirmation warning) | Design → Execute | ✅ Verified, no gaps |
+| ADMIN-27 (self-scoped access + Super Admin override) | Design → Execute | ✅ Verified, no gaps |
+
+### Summary
+
+**Overall**: ✅ **PASS** (T21/T22 / ADMIN-24..27)
+
+**Spec-anchored check**: 4/4 ACs matched spec-defined outcomes with `file:line` + exact-value evidence; 0 spec-precision gaps; 1 non-blocking scope note.
+**Sensor**: 3/3 mutations killed (upcoming-event-confirmation guard, export-status field, promoter cascade-hide side effect) — all discriminating.
+**Gate**: 73/73 full suite passed (62 baseline + 11 new, exact match), Pint clean across 174 files.
+
+**What works**: `OrganizerDataController` cleanly follows the established Presentation→Application→Domain←Infrastructure layering; the queued export job scopes correctly to the requesting organizer only; the 409-confirm-required deletion flow and the 30-day hard-delete retention window are both precisely tested and sensor-confirmed; the Super Admin override is properly policy-gated; the same-session IDOR self-fix (unguessable export key + signed temporary URL) is verified present in the merged code.
+
+**Issues found**: none blocking. One scope note: `hidden_at` on venue/event/promoter rows has no consumer-facing reader yet in this repo — expected, since that reader is owned by the not-yet-built web-app/mobile-app consumer listing features per spec.md's Out-of-Scope table; flagged so those specs' implementers know to filter on it.
+
+**Next steps**: none required for this phase's sign-off. When web-app/mobile-app build their consumer-facing event/venue listing queries, they should filter out rows with a non-null `hidden_at` (and, for organizers, exclude soft-deleted `organizer_id`s) to fully close the ADMIN-25 loop end-to-end.
+
+**Final overall verdict: ✅ PASS.** No open findings remain.

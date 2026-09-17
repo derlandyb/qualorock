@@ -61,6 +61,19 @@ services:
     networks:
       - qualorock
 
+  queue-worker:
+    build:
+      context: ./api
+    command: ["php", "artisan", "queue:work", "--tries=3"]
+    environment:
+      <<: *backend-env
+    depends_on:
+      - postgres
+      - minio
+      - mailhog
+    networks:
+      - qualorock
+
   postgres:
     image: postgres:16-alpine
     environment:

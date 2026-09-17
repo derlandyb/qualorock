@@ -755,7 +755,7 @@ T43 -> T44
 
 ---
 
-### T21: OrganizerDataController: export
+### T21: OrganizerDataController: export ✅
 
 **What**: Queue a Laravel Queue job that generates a downloadable archive of the organizer's own Organizer/Venue/Event/Promoter rows.
 **Where**: `backend/app/Presentation/Http/Controllers/Organizer/OrganizerDataController.php`
@@ -769,9 +769,9 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] GIVEN an organizer requests a data export WHEN the queued job completes THEN a `DataExportRequest` row moves to `ready` with a `downloadUrl` - test passes
-- [ ] GIVEN the export archive WHEN inspected THEN it contains only that organizer's own Organizer/Venue/Event/Promoter data - test passes
-- [ ] Gate check passes: `php artisan test --filter=OrganizerDataExport`
+- [x] GIVEN an organizer requests a data export WHEN the queued job completes THEN a `DataExportRequest` row moves to `ready` with a `downloadUrl` - test passes
+- [x] GIVEN the export archive WHEN inspected THEN it contains only that organizer's own Organizer/Venue/Event/Promoter data - test passes
+- [x] Gate check passes: `php artisan test --filter=OrganizerDataExport`
 
 **Tests**: integration
 **Gate**: full
@@ -780,7 +780,7 @@ T43 -> T44
 
 ---
 
-### T22: OrganizerDataController: account deletion with Super Admin override
+### T22: OrganizerDataController: account deletion with Super Admin override ✅
 
 **What**: Soft-delete the organizer and cascade-hide (not hard-delete) events/venue/promoters from consumer listings immediately; schedule a hard-delete of personal fields after the 30-day retention window (flagged in design.md as an unconfirmed default). Deletion with an upcoming published event returns 409 requiring `confirm: true` per design.md's Error Handling table. Super Admin can trigger this on an organizer's behalf.
 **Where**: `backend/app/Presentation/Http/Controllers/Organizer/OrganizerDataController.php`
@@ -794,11 +794,11 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] GIVEN an organizer with no upcoming published events WHEN requesting deletion THEN the account is soft-deleted and its events/venue/promoters are hidden from consumer listings - test passes
-- [ ] GIVEN an organizer with an upcoming published event WHEN requesting deletion without `confirm: true` THEN the response is 409 - test passes
-- [ ] GIVEN 30 days have elapsed since soft-delete WHEN the scheduled job runs THEN personal fields are hard-deleted - test passes
-- [ ] GIVEN a super_admin WHEN triggering deletion on an organizer's behalf THEN the same flow applies - test passes
-- [ ] Gate check passes: `php artisan test --filter=OrganizerDataDeletion`
+- [x] GIVEN an organizer with no upcoming published events WHEN requesting deletion THEN the account is soft-deleted and its events/venue/promoters are hidden from consumer listings - test passes
+- [x] GIVEN an organizer with an upcoming published event WHEN requesting deletion without `confirm: true` THEN the response is 409 - test passes
+- [x] GIVEN 30 days have elapsed since soft-delete WHEN the scheduled job runs THEN personal fields are hard-deleted - test passes
+- [x] GIVEN a super_admin WHEN triggering deletion on an organizer's behalf THEN the same flow applies - test passes
+- [x] Gate check passes: `php artisan test --filter=OrganizerDataDeletion`
 
 **Tests**: integration
 **Gate**: full
