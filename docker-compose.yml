@@ -186,9 +186,14 @@ services:
   # Test-only: never starts with the default profile (`docker compose up`).
   # Start explicitly with `docker compose --profile test up playwright` (or `make test-e2e`).
   playwright:
-    image: mcr.microsoft.com/playwright:latest
+    # Pinned to match admin/e2e's installed @playwright/test version -
+    # Playwright requires the image and npm package versions to match exactly.
+    image: mcr.microsoft.com/playwright:v1.63.0-jammy
     profiles: ["test"]
     working_dir: /e2e
+    environment:
+      ADMIN_PANEL_URL: http://admin-panel:5174
+      ADMIN_PANEL_API_URL: http://backend:8000
     volumes:
       - ./website/e2e:/e2e/website
       - ./admin/e2e:/e2e/admin

@@ -27,8 +27,20 @@ build:
 	docker compose build
 
 # The only target that starts Playwright, via its dedicated compose profile.
+# Runs each app's Playwright suite (only those with a playwright.config.ts
+# today - website/landingpage have none yet, so they're skipped, not
+# hardcoded out) against the already-running containers on the qualorock
+# network.
 test-e2e:
-	docker compose --profile test run --rm playwright
+	docker compose --profile test run --rm playwright sh -c '\
+		set -e; \
+		for app in website admin landingpage; do \
+			if [ -f /e2e/$$app/playwright.config.ts ]; then \
+				echo "==> running Playwright suite: $$app"; \
+				cd /e2e/$$app && npm ci && npx playwright test; \
+				cd /e2e; \
+			fi; \
+		done'
 
 # Runs Laravel's DatabaseSeeder (AdminPanelSeeder, then WebAppSeeder) against
 # the running backend service.
