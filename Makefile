@@ -31,7 +31,29 @@ build:
 # today - website/landingpage have none yet, so they're skipped, not
 # hardcoded out) against the already-running containers on the qualorock
 # network.
+#
+# The Playwright container's browser runs *inside* the Docker network, so a
+# page it loads must reach the backend via the "backend" service hostname,
+# not "localhost" (which from that browser's perspective means the
+# Playwright container itself). admin-panel's own default VITE_API_URL is
+# "localhost:8000" for a host-machine browser (the normal `make up` case),
+# so this target restarts admin-panel with ADMIN_PANEL_API_URL pointed at
+# the container-network hostname before running the suite against it. The
+# backend must also allow that origin via CORS, hence CORS_ALLOWED_ORIGINS
+# below - this is the CORRECT config, but as of this writing api's CORS
+# middleware (vendor/fruitcake/php-cors via Illuminate\Http\Middleware\
+# HandleCors) does not actually reflect config('cors.allowed_origins') at
+# request time (confirmed via reflection on the live CorsService instance:
+# its $allowedOrigins stays empty regardless of this env var), so any
+# admin-panel test that makes a real un-mocked browser-side cross-origin
+# fetch will still fail here specifically, even though the same test
+# passes correctly against a host-machine dev server talking to the same
+# backend on localhost. This is a pre-existing bug in the api submodule,
+# out of scope for admin-panel's own phases to fix - tracked separately.
 test-e2e:
+	ADMIN_PANEL_API_URL=http://backend:8000 \
+	CORS_ALLOWED_ORIGINS=http://localhost:5174,http://admin-panel:5174 \
+	docker compose up -d --wait admin-panel backend
 	docker compose --profile test run --rm playwright sh -c '\
 		set -e; \
 		for app in website admin landingpage; do \
