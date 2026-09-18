@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 6,
+  "next_id": 8,
   "lessons": [
     {
       "id": "L-001",
@@ -94,6 +94,42 @@
       ],
       "created": "2026-09-17T22:47:44Z",
       "last_seen": "2026-09-17T22:47:44Z"
+    },
+    {
+      "id": "L-006",
+      "key": "ac_gap::when a management screen s spec user story lists multiple crud actions verify every one including delete has a reachable ui control before marking the screen s task done a backend endpoint existing is not evidence the frontend exposes it",
+      "text": "When a management screen's spec user story lists multiple CRUD actions, verify every one (including delete) has a reachable UI control before marking the screen's task done - a backend endpoint existing is not evidence the frontend exposes it.",
+      "signal": "ac_gap",
+      "scope": "admin-panel-frontend",
+      "status": "candidate",
+      "features": [
+        "admin-panel"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        ".specs/features/admin-panel/spec.md AC4 (P1: Register and manage events) - no file:line evidence in Phase 9 diff (admin-panel-frontend)"
+      ],
+      "created": "2026-09-18T04:50:41Z",
+      "last_seen": "2026-09-18T04:50:41Z"
+    },
+    {
+      "id": "L-007",
+      "key": "ac_gap::when a form s submit handler branches between create and update calls write a dedicated test for each branch asserting the correct api function was called with the correct arguments testing only the create branch leaves the update branch unverified",
+      "text": "When a form's submit handler branches between create and update calls, write a dedicated test for each branch asserting the correct API function was called with the correct arguments - testing only the create branch leaves the update branch unverified.",
+      "signal": "ac_gap",
+      "scope": "admin-panel-frontend",
+      "status": "candidate",
+      "features": [
+        "admin-panel"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "admin/src/presentation/pages/Events/__tests__/EventForm.test.tsx - updateEventMock declared and mocked but never asserted as called (admin-panel-frontend)"
+      ],
+      "created": "2026-09-18T04:50:47Z",
+      "last_seen": "2026-09-18T04:50:47Z"
     }
   ]
 }

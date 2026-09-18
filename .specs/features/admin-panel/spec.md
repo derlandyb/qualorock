@@ -205,11 +205,11 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | ADMIN-03 | P1: Organizer access is gated by Super Admin approval | Design | Pending |
 | ADMIN-04 | P1: Organizer access is gated by Super Admin approval | Execute | Verified (T10 backend + T23/T24 frontend) |
 | ADMIN-05 | P1: Organizer access is gated by Super Admin approval | Execute | Verified (T9 backend verified; T23 frontend route guard implemented and verified — see Phase 8 re-verify iteration 1) |
-| ADMIN-06 | P1: Register and manage events | Execute | Done (T14 backend + T25/T26 frontend) |
-| ADMIN-07 | P1: Register and manage events | Execute | Done (T14 backend + T25/T26 frontend) |
+| ADMIN-06 | P1: Register and manage events | Execute | Verified (T14 backend + T25/T26 frontend — Phase 9 validation, AC1) |
+| ADMIN-07 | P1: Register and manage events | Execute | Verified (T14 backend + T25 frontend edit-save path now tested — Phase 9 re-verify iteration 1, AC2) |
 | ADMIN-08 | P1: Register and manage events | Design | Pending |
-| ADMIN-09 | P1: Register and manage events | Execute | Done (T14 backend + T25/T26 frontend) |
-| ADMIN-10 | P1: Register and manage events | Execute | Done (T14 backend + T25/T26 frontend) |
+| ADMIN-09 | P1: Register and manage events | Execute | Verified (T14 backend + T25 frontend delete UI now implemented and tested — Phase 9 re-verify iteration 1, AC4) |
+| ADMIN-10 | P1: Register and manage events | Execute | Verified (T14 backend + T25/T26 frontend — Phase 9 validation, AC6) |
 | ADMIN-11 | P2: Engagement dashboard | Design | Pending |
 | ADMIN-12 | P2: Engagement dashboard | Design | Pending |
 | ADMIN-13 | P2: Manage venue ("Casa de Shows") presence | Design | Pending |
@@ -227,7 +227,7 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | ADMIN-25 | P2: Organizer data export and deletion (LGPD) | Execute | Verified (T22) |
 | ADMIN-26 | P2: Organizer data export and deletion (LGPD) | Execute | Verified (T22) |
 | ADMIN-27 | P2: Organizer data export and deletion (LGPD) | Execute | Verified (T22) |
-| ADMIN-28 | P1: Register and manage events (Basic-tier event-cap enforcement, AD-005) | Execute | Done (T14 backend + T25/T26 frontend) |
+| ADMIN-28 | P1: Register and manage events (Basic-tier event-cap enforcement, AD-005) | Execute | Verified (T14 backend + T25/T26 frontend — Phase 9 validation, AC7) |
 
 **ID format:** `ADMIN-[NUMBER]`
 

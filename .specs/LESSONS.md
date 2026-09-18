@@ -44,6 +44,18 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: ADMIN-05 / tasks.md T23 Done-when bullet 7 (admin/src/presentation/routes)
 - last seen: 2026-09-17T22:47:44Z
 
+### L-006 - When a management screen's spec user story lists multiple CRUD actions, verify every one (including delete) has a reachable UI control before marking the screen's task done - a backend endpoint existing is not evidence the frontend exposes it.
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `admin-panel-frontend` · harmful: 0
+- features: admin-panel
+- evidence: .specs/features/admin-panel/spec.md AC4 (P1: Register and manage events) - no file:line evidence in Phase 9 diff (admin-panel-frontend)
+- last seen: 2026-09-18T04:50:41Z
+
+### L-007 - When a form's submit handler branches between create and update calls, write a dedicated test for each branch asserting the correct API function was called with the correct arguments - testing only the create branch leaves the update branch unverified.
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `admin-panel-frontend` · harmful: 0
+- features: admin-panel
+- evidence: admin/src/presentation/pages/Events/__tests__/EventForm.test.tsx - updateEventMock declared and mocked but never asserted as called (admin-panel-frontend)
+- last seen: 2026-09-18T04:50:47Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

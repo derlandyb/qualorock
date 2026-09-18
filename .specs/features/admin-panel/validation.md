@@ -1425,3 +1425,277 @@ All commands re-run fresh from the current merged `HEAD` (`cdaef35`), no branch 
 **Next steps**: None — T23 and T24 are both fully done. Marked `[x]` in tasks.md with all Done-when bullets ticked, since this re-verification is a clean PASS.
 
 **Final overall verdict: ✅ PASS.** The gap from the prior FAIL entry is closed; no gaps remain for T23/T24.
+
+---
+
+## Validation: admin-panel Phase 9 (T25-T26) - FAIL ❌
+
+# Admin Panel Validation — Phase 9 (T25–T26: Event list + event form + status-transition UI)
+
+**Date**: 2026-09-18
+**Spec**: `.specs/features/admin-panel/spec.md` (P1: Register and manage events, lines 70-87), `.specs/features/admin-panel/tasks.md` (T25-T26, lines 865-916), `.specs/features/admin-panel/design.md` (EventController / EventPolicy, lines 127-133)
+**Scope**: This validation covers **Phase 9 only** — T25 (event list/form/status-transition UI) and T26 (visual verification against the Corona reference). Phases 1-8 already have their own PASS entries above and are not re-verified here.
+**Diff range**:
+- `api` submodule: `17b39fe..51da5b9` (`main`) — 1 commit: `550f43e feat(admin-panel): add organizer events index endpoint`
+- `admin` submodule: `cdaef35..416537d` (`main`) — 4 commits: `58720cf feat(admin-panel): add event list, form, and status-transition UI`, `fc20ba1 test(admin-panel): verify event management screen against Corona reference`, `0d2955e chore(admin-panel): add react-code-reviewer PR review agent`, `140c959 fix(admin-panel): handle every publish error code and venue-fetch failure`
+**Verifier**: independent sub-agent (author ≠ verifier)
+
+---
+
+## Task Completion
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| T25 | ⚠️ Partial | List/form/status-transition/duplicate/cap-warning UI built and tested; the "manage events" story's own delete criterion (spec AC4) has no UI or test in this diff — see gap below. Everything actually claimed in T25's "What"/Done-when is done. |
+| T26 | ✅ Done | `admin/e2e/visual/events.spec.ts` screenshots + asserts card/table/badge/button tokens against the values in `docs/admin-panel/qor-design-tokens.md`; all pass live (see Gate Check). |
+
+---
+
+## Spec-Anchored Acceptance Criteria (P1: Register and manage events)
+
+| Criterion (WHEN X THEN Y) | Spec-defined outcome | `file:line` + assertion expression | Result |
+| --- | --- | --- | --- |
+| AC1: organizer submits a new event with all listed fields → created in `draft` | New event persisted, status = `draft` | `admin/src/presentation/pages/Events/__tests__/EventForm.test.tsx:82-110` — fills every required field, clicks Save, `expect(createEventMock).toHaveBeenCalledWith(expect.objectContaining({ venueId: 42, title: 'New Event' }))`; backend (pre-existing, re-run green) `api/tests/Feature/Organizer/EventControllerTest.php:48` `it_creates_an_event_as_draft` | ✅ PASS |
+| AC2: organizer edits their own event → changes saved and applied immediately | Update persisted | Code path exists — `admin/src/presentation/pages/Events/EventForm.tsx:129` `const saved = editingEvent ? await updateEvent(editingEvent.id, payload) : await createEvent(payload)` — but no test in this diff drives the edit branch (`updateEventMock` is declared at `EventForm.test.tsx:8` and mocked at `:14` but never asserted as called anywhere in the file's 9 tests); backend edit path is pre-existing/out of scope. | ⚠️ Spec-precision gap (frontend test coverage) — functionality present, not exercised by a test in scope |
+| AC3: organizer duplicates their own event → new `draft` copy, same fields, no engagement stats | Duplicate created, prepended to list, no navigation | `admin/src/presentation/pages/Events/EventList.tsx:36-41` `handleDuplicate`; `admin/src/presentation/pages/Events/__tests__/EventList.test.tsx:117-134` — clicks Duplicate, asserts row count 2→ and `queryByTestId('event-form-new')` absent (no navigation); backend (pre-existing) `it_duplicates_an_organizers_own_event` | ✅ PASS |
+| AC4: organizer deletes their own event → removed from all consumer-facing listings | Delete triggered from the UI | **No evidence** — `admin/src/infrastructure/api/eventsApi.ts` has no `deleteEvent` function; `admin/src/presentation/pages/Events/EventList.tsx` has no delete button/action; no test in `EventList.test.tsx`/`EventForm.test.tsx`/`e2e/visual/events.spec.ts` references delete. Backend `DELETE /organizer/events/{id}` exists and is tested (pre-existing, `EventControllerTest.php` `it_deletes_an_organizers_own_event`), but nothing in the admin-panel UI can reach it. | ❌ GAP — evidence-or-zero: 0 file:line citations for a frontend delete action |
+| AC5: status transitions restricted to draft→published, published→cancelled, published→closed, draft→cancelled; all others rejected | Exact whitelist, others rejected with 422 | `admin/src/domain/types/event.ts:28-33` `EVENT_STATUS_TRANSITIONS` = `{draft:[published,cancelled], published:[cancelled,closed], cancelled:[], closed:[]}` — byte-for-byte matches backend `api/app/Domain/Entities/Event.php:33-40` `canTransitionTo`; UI tests `admin/src/presentation/pages/Events/__tests__/EventList.test.tsx:80-115` (draft offers only Publish+Cancel; published offers only Cancel+Close; closed offers none) and `EventForm.test.tsx:145-154` (`invalid_transition` error code shows "This status change isn't allowed.") | ✅ PASS |
+| AC6: organizer A denied acting on organizer B's event | 403 / event not visible to A | New backend test (this diff) `api/tests/Feature/Organizer/EventControllerTest.php:31-44` `it_lists_only_the_organizers_own_events` — `GET /organizer/events` for organizer A returns 1 event, `assertJsonCount(1, 'data')`, `assertJsonFragment(['id' => $eventA->id, ...])`; UI has no code path to view/act on another organizer's event by construction (list is scoped server-side). Update/delete/duplicate/transition ownership checks are pre-existing (`EventPolicy`, Phase 3). | ✅ PASS |
+| AC7: Basic-tier organizer blocked from a 5th `published` transition this month, Plus-tier upgrade identified as the fix | 422 `upgrade_required`, UI shows the upgrade path, not a raw error | `admin/src/presentation/pages/Events/EventForm.tsx:150-153,192-200` — `upgrade_required` branch shows `data-testid="upgrade-required-message"` text "You've reached your Basic-tier limit — upgrade to Plus to publish more events this month."; tested at `EventForm.test.tsx:112-122`, `EventList.test.tsx:151-167` (row keeps `Draft` status, no raw string leaks), and live e2e `e2e/visual/events.spec.ts:66-81` | ✅ PASS |
+
+**Status**: ❌ Gaps present — AC4 (delete) has zero frontend evidence; AC2 (edit) has a test-coverage gap flagged as spec-precision (functionality exists, untested in this diff).
+
+---
+
+## Discrimination Sensor
+
+**Isolation method**: `git -C admin worktree add /tmp/sensor-scratch/admin HEAD` and `git -C api worktree add /tmp/sensor-scratch/api HEAD` (real git worktrees, no `git stash`). Neither `backend` nor `admin-panel` containers have a bind mount, so each mutated file was copied into the running container with `docker compose cp` (after first backing up the container's live copy with `docker compose cp <container>:<path> <backup>`), the relevant gate command was run inside the container, then the original file was `docker compose cp`'d back into the container to restore it. Baseline `git status --porcelain` on `admin`, `api`, and the root repo was empty before sensor work; both worktrees were removed (`git worktree remove --force`) and all three trees re-confirmed empty after — sensor run is valid.
+
+| Mutation | File:line | Description | Killed? |
+| -------- | --------- | ------------ | ------- |
+| 1 | `api/app/Infrastructure/Persistence/Eloquent/EloquentEventRepository.php:20-25` | `findByOrganizerId($organizerId)` changed to ignore `$organizerId` and return `Event::get()` (all events, cross-organizer leak) | ✅ Killed — `php artisan test --filter=EventControllerTest`: `it_lists_only_the_organizers_own_events` failed (`assertJsonCount(1, 'data')` — actual size 2) |
+| 2 | `admin/src/domain/types/event.ts:29` | `EVENT_STATUS_TRANSITIONS[draft]` changed from `[published, cancelled]` to `[published]` (drops the draft→cancelled transition) | ✅ Killed — `npx vitest run EventList.test.tsx`: "GIVEN a draft event WHEN listed THEN only Publish and Cancel actions are offered" failed — `getByRole('button', { name: 'Cancel' })` not found |
+| 3 | `admin/src/presentation/pages/Events/EventForm.tsx:154-156` | Removed the `missing_required_fields` case from `handlePublish`'s switch (falls through silently) | ✅ Killed — `npx vitest run EventForm.test.tsx`: "GIVEN a draft event being edited WHEN Publish is rejected for missing fields THEN it lists the missing fields" timed out — no alert rendered |
+
+**Sensor depth**: lightweight (default tier), 3 targeted mutations covering the new cross-organizer scoping (api) and the two frontend behaviors this phase is most likely to regress (transition whitelist, error-code handling).
+**Result**: 3/3 killed — PASS ✅.
+
+---
+
+## Code Quality
+
+| Principle | Status |
+| --- | --- |
+| Minimum code (no speculative flexibility) | ✅ — no extra CRUD, no unused config; the api diff is 28 lines (index endpoint + route + test) |
+| Surgical changes (only files required for the task) | ✅ — `admin`'s diff is scoped to Events pages, their supporting domain/infra/component files, routes, styles, and tests; the one outlier is `.claude/agents/react-code-reviewer.md`, added as its own atomic commit (`0d2955e`) for AD-011 tooling parity — unrelated to T25/T26's UI but not touching any T25/T26 file |
+| No scope creep | ⚠️ — see AC4 gap; T25's own "What"/Done-when never claimed delete, so this is a task-decomposition gap against the spec, not scope creep in the code that was written |
+| Matches existing patterns/style | ✅ — Clean Architecture layering (`domain/types`, `infrastructure/api`, `presentation/pages|components`) consistent with prior phases; GIVEN/WHEN/THEN test names; no magic hex/px (all colors trace to `adminPanelConstants.ts`/`index.css`'s `@theme` block, confirmed by diff) |
+| Would senior engineer approve? | ✅ modulo the AC4 gap — code itself is clean; a senior reviewer already caught and fixed 3 silent-failure paths in `140c959` (missing_required_fields/invalid_transition branches, unhandled venue-fetch rejection, silent save failure) |
+| Tests map to acceptance criteria and are non-shallow | ✅ — spot-checked EventForm/EventList tests above; each targets a specific rendered outcome, not just "no crash" |
+| Spec-anchored outcome check | ✅ for AC1/3/5/6/7 (exact values/behaviors asserted); ⚠️ for AC2 (no assertion at all); ❌ for AC4 (nothing to assert) |
+| Per-layer Coverage Expectation met | ⚠️ — domain logic (`allowedEventStatusTransitions`) has full 1:1 coverage; UI route coverage is happy+edge+error for publish/duplicate/list but has no route for delete |
+| Every test in scope maps to a spec AC/Done-when (no unclaimed tests) | ✅ — every test in `EventList.test.tsx`/`EventForm.test.tsx`/`events.spec.ts` traces to a T25 Done-when bullet or a P1 AC |
+| Documented project quality/testing guidelines followed | `docs/admin-panel/qor-design-tokens.md` (updated in this diff), `.specs/features/admin-panel/design.md` Coding Conventions (AD-012/013) |
+
+---
+
+## Edge Cases (from spec.md P1 edge-case/error-handling coverage)
+
+- [x] Invalid status transition rejected with a generic message, not a raw error (`EventForm.tsx:157-159`, tested)
+- [x] Missing required fields before publish listed explicitly (`EventForm.tsx:154-156`, tested)
+- [x] Basic-tier cap shows upgrade path, not raw error code (`EventForm.tsx:150-153`, tested; also `EventList.test.tsx`, `events.spec.ts`)
+- [x] Direct navigation to an edit route with no event in router state redirects to the list rather than crashing (`EventForm.tsx:166-168`, tested at `EventForm.test.tsx:74-80`)
+- [x] Venue-fetch failure shows an error instead of leaving Save silently disabled forever (`EventForm.tsx:93-95`, tested at `EventForm.test.tsx:167-175`)
+- [ ] Event deletion (spec AC4) — NOT handled in the UI; see gap above
+
+---
+
+## Gate Check
+
+- **Gate commands**: `docker compose exec backend php artisan test` (full suite); `docker compose exec admin-panel npm test` / `npm run lint` / `npm run build`; e2e via `docker compose --profile test run --rm --no-deps playwright sh -c 'cd /e2e/admin && npm ci && npx playwright test'` (after `docker compose up -d --wait admin-panel backend` with `ADMIN_PANEL_API_URL`/`CORS_ALLOWED_ORIGINS` set)
+- **Backend**: 79 passed (226 assertions), 0 failed, 0 skipped — includes the new `EventControllerTest::it_lists_only_the_organizers_own_events`
+- **Frontend unit**: 36 passed (6 test files), 0 failed — includes `EventList.test.tsx` (7 tests) and `EventForm.test.tsx` (9 tests), both new this phase
+- **Frontend lint**: `oxlint` — 0 warnings, 0 errors, 31 files
+- **Frontend build**: `tsc -b && vite build` — clean, no type errors
+- **E2E (Playwright)**: 13 passed, 0 failed — includes `events.spec.ts`'s 5 new tests
+- **Test count before this phase**: backend 78 (79 - 1; the diff contains exactly one new `#[Test]` method, confirmed by reading the diff directly); frontend 20 Vitest + 8 Playwright = 28 (per Phase 8's re-verify tally, line 1381 above)
+- **Test count after this phase**: backend 79 (+1: `it_lists_only_the_organizers_own_events`); frontend 36 Vitest (+16: `EventList.test.tsx` 7 + `EventForm.test.tsx` 9, both new files this phase) + 13 Playwright (+5: `events.spec.ts`'s 5 tests)
+- **Delta**: +1 backend, +16 Vitest, +5 Playwright — 0 removed, 0 weakened
+- **Skipped tests**: none
+- **Failures**: none
+
+---
+
+## Fix Plans (if issues found)
+
+### Fix 1: No way to delete an event from the admin panel UI
+
+- **Root cause**: T25's own task definition ("What"/Done-when) never included a delete action, even though spec.md's P1 AC4 requires organizer-initiated delete and the backend `DELETE /organizer/events/{id}` endpoint (with its own test coverage) already exists from Phase 3 (T13). This is a Tasks-phase decomposition gap, not an implementation bug — the code that was written matches what was asked; what was asked didn't cover the full story.
+- **Fix task**: Add a `deleteEvent(id)` function to `admin/src/infrastructure/api/eventsApi.ts` (mirroring `duplicateEvent`'s shape), a "Delete" row action in `admin/src/presentation/pages/Events/EventList.tsx` (with a confirmation step, consistent with a destructive action), and tests in `EventList.test.tsx` + `events.spec.ts` covering: delete removes the row from the list, and a failed delete surfaces an error rather than failing silently (matching the pattern already established for save/publish in `140c959`).
+- **Priority**: Major (a P1/MVP acceptance criterion has no UI path; blocks "Independent Test" in spec.md line 86, which requires "cancel the original" but doesn't exercise delete — however AC4 itself is explicit and unmet).
+
+### Fix 2: Edit-save path (AC2) has no dedicated frontend test
+
+- **Root cause**: `EventForm.test.tsx` only exercises the create branch of `handleSubmit`; the edit branch (`editingEvent ? await updateEvent(...) : ...`) is reachable code but not asserted anywhere.
+- **Fix task**: Add a test to `EventForm.test.tsx`: render the edit form via `renderEditForm()`, submit, and assert `updateEventMock` was called with `editingEvent.id` and the expected payload.
+- **Priority**: Minor (functionality is straightforward and mirrors the tested create path; this is a coverage gap, not a known behavioral defect).
+
+---
+
+## Requirement Traceability Update
+
+`spec.md`'s traceability table maps ADMIN-06/07/09/10/28 to "Execute / Done (T14 backend + T25/T26 frontend)" without an explicit per-criterion ID breakdown (the table binds IDs to the whole P1 story, not to individual ACs). By elimination against `tasks.md`'s own per-task `Requirement` lines (T11→ADMIN-10 ownership, T14→ADMIN-28 cap, T13→ADMIN-06/07/08/09 covering create/publish-validation/invalid-transition/delete/duplicate), the most defensible reading is: ADMIN-06=create, ADMIN-09=delete+duplicate, ADMIN-10=ownership, ADMIN-28=cap, with ADMIN-07 the closest fit for edit. This mapping is inferred, not stated in spec.md — flagged as its own documentation gap below.
+
+| Requirement | Previous Status | New Status |
+| --- | --- | --- |
+| ADMIN-06 | Execute / Done (T14 backend + T25/T26 frontend) | Execute / **Verified** — AC1 fully covered, evidence above |
+| ADMIN-07 | Execute / Done (T14 backend + T25/T26 frontend) | Execute / **Needs Fix** — AC2's frontend edit-save path has no test evidence (Fix 2) |
+| ADMIN-09 | Execute / Done (T14 backend + T25/T26 frontend) | Execute / **Needs Fix** — AC4 delete has no frontend UI/test at all (Fix 1); duplicate half of this ID is fully verified |
+| ADMIN-10 | Execute / Done (T14 backend + T25/T26 frontend) | Execute / **Verified** — AC6 fully covered, evidence above (including this phase's new cross-organizer-scoping test) |
+| ADMIN-28 | Execute / Done (T14 backend + T25/T26 frontend) | Execute / **Verified** — AC7 fully covered, evidence above |
+
+(`spec.md` traceability table lines 208-212, 230 updated to match; ADMIN-08 left untouched at Design/Pending per its documented, deliberate scope boundary — no T25/T26 Done-when bullet claims to cover it.)
+
+---
+
+## Summary
+
+**Overall**: ⚠️ Issues
+
+**Spec-anchored check**: 5/7 P1 ACs matched spec outcome with full evidence (AC1, AC3, AC5, AC6, AC7); 1 spec-precision/coverage gap (AC2); 1 real gap (AC4, delete UI entirely missing).
+**Sensor**: 3/3 mutations killed — the tests that exist are genuinely discriminating; the sensor found no weak tests, only a missing feature.
+**Gate**: 79 backend + 36 Vitest + 13 Playwright all passed, 0 failed, 0 skipped, build/lint clean.
+
+**What works**: Event list (table, status badges, transition actions, duplicate), event form (create/edit fields, publish with full error-code handling, cap-exceeded messaging), and the new `GET /organizer/events` endpoint (correctly scoped to the authenticated organizer, now with its own regression test) are all built, wired into the router, and covered by non-shallow tests that were empirically confirmed to catch regressions (discrimination sensor: 3/3 killed). Visual tokens (card/table/badge/button) match `docs/admin-panel/qor-design-tokens.md` exactly, live-verified via Playwright against the running containers.
+
+**Issues found**:
+1. AC4 (delete) — no frontend path exists to delete an event. Fix: Fix 1 above.
+2. AC2 (edit) — code path exists but untested in this diff. Fix: Fix 2 above.
+3. Documentation: `spec.md`'s ADMIN-06..10 traceability rows bind to the whole P1 story rather than individual ACs, making gap attribution to a specific ID an inference rather than a citation — worth tightening in a future spec pass (not blocking, informational).
+
+**Next steps**: Route Fix 1 (Major) and Fix 2 (Minor) back to an implementer as new tasks (e.g. T25a/T25b) under Phase 9, then re-verify. Do not mark T25/T26 fully done in `tasks.md` beyond what's already ticked until Fix 1 lands — the checkboxes currently marked `[x]` reflect what was built, not full spec coverage; recommend adding an explicit "Delete event" bullet to a follow-up task rather than retroactively editing T25's original Done-when list.
+
+**Final overall verdict: ❌ FAIL** (on AC4; AC2 is a should-fix, not a blocker). T26's own screen-verification scope (visual tokens) is fully PASS — the FAIL is scoped to T25's functional completeness against spec.md's P1 story, specifically the missing delete action.
+
+---
+
+## Validation: admin-panel Phase 9 - Re-verify iteration 1 - PASS ✅
+
+**Date**: 2026-09-18
+**Spec**: `.specs/features/admin-panel/spec.md` (P1: Register and manage events, AC2 and AC4, lines 70-87)
+**Scope**: Re-verification of the two gaps the prior FAIL entry ("## Validation: admin-panel Phase 9 (T25-T26) - FAIL ❌", above) identified — Fix 1 (Major: AC4 delete had zero frontend UI path) and Fix 2 (Minor: AC2 edit-save branch untested). This is a fix→re-verify cycle (iteration 1 of 3), not a from-scratch re-audit; AC1/AC3/AC5/AC6/AC7 already passed spec-anchored check, gate, and sensor in the first pass and are not redone here.
+**Diff range**: `admin` submodule, `cdaef35..69c5ef5` (merge commit of PR #4, branch `phase-9-event-delete-fix` → `main`), fix-specific commits:
+```
+e8635af fix(admin-panel): add missing delete-event action to the event list
+582e6b0 test(admin-panel): add e2e delete-action coverage
+```
+**Verifier**: independent sub-agent (author ≠ verifier) — no prior "done" claim trusted; gap closure re-derived from the diff, tests, and live gate/sensor runs.
+
+---
+
+## Task Completion
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| T25 | ✅ Done | Both previously-missing pieces are now implemented: `deleteEvent()` added to `admin/src/infrastructure/api/eventsApi.ts:38-42`, a confirm-then-delete "Delete" row action added to `admin/src/presentation/pages/Events/EventList.tsx:44-52,125` (with an error message on failure at `EventList.tsx:69-73`), and the previously-uncovered edit/update branch of `EventForm`'s save handler now has a dedicated test. |
+| T26 | ✅ Done (unchanged) | Not re-touched by this fix; still passing per the prior entry. |
+
+**Test Integrity Check**: Test count before this fix: 36 Vitest (6 files) + 13 Playwright. Test count after: 40 Vitest (6 files) + 16 Playwright — confirmed by live `npm test` (`Test Files 6 passed (6)`, `Tests 40 passed (40)`) and `npx playwright test` (`16 passed`) runs in this session. +4 new Vitest tests (3 in `EventList.test.tsx` for delete confirm/cancel/failure, 1 in `EventForm.test.tsx` for the edit branch), +3 new Playwright tests (`events.spec.ts` delete confirm/dismiss/failure), 0 removed, 0 weakened.
+
+---
+
+## Spec-Anchored Acceptance Criteria (AC2 and AC4 only — the two gaps under re-verification)
+
+| Criterion (WHEN X THEN Y) | Spec-defined outcome | `file:line` + assertion expression | Result |
+| --- | --- | --- | --- |
+| AC2: organizer edits their own event → changes saved and applied immediately | Update persisted via `updateEvent`, not `createEvent` | `admin/src/presentation/pages/Events/__tests__/EventForm.test.tsx:112-124` — "GIVEN an existing event being edited WHEN the organizer saves a changed field THEN it calls updateEvent with that event's id, not createEvent": renders the edit form, changes the Title field, clicks Save, then `expect(updateEventMock).toHaveBeenCalledWith(1, expect.objectContaining({ title: 'Updated Title', venueId: 7 }))` and `expect(createEventMock).not.toHaveBeenCalled()` | ✅ PASS |
+| AC4: organizer deletes their own event → removed from all consumer-facing listings | Delete triggered from the UI, row removed on success, error surfaced on failure (not silent) | API: `admin/src/infrastructure/api/eventsApi.ts:38-42` — `export async function deleteEvent(id) { ...; const response = await apiFetch(...,{method:'DELETE'}); return response.ok }`. UI wiring: `admin/src/presentation/pages/Events/EventList.tsx:44-52` — `handleDelete` calls `window.confirm(...)`, then `deleteEvent(event.id)`, then `if (deleted) setEvents(current => current.filter(item => item.id !== event.id)); else setDeleteError(...)`. Unit-proven at `admin/src/presentation/pages/Events/__tests__/EventList.test.tsx:173-190` (confirm+success → `expect(deleteEventMock).toHaveBeenCalledWith(3)` then row count 0), `:193-206` (confirm dismissed → `expect(deleteEventMock).not.toHaveBeenCalled()`, row count unchanged), `:208-224` (confirm+failure → `expect(screen.getByRole('alert')).toHaveTextContent(/could not delete this event/i)`, row still present). Live e2e-proven at `admin/e2e/visual/events.spec.ts:83-97` (real router, mocked `DELETE .../events/1` → 204, row count 0 after), `:99-107` (dialog dismissed, row count 1), `:109-124` (mocked `DELETE` → 403, `expect(page.getByRole('alert')).toContainText(/could not delete this event/i)`, row still visible). | ✅ PASS |
+
+**Status**: ✅ Both re-verified ACs covered with exact `file:line` evidence — the gaps from the prior FAIL entry are closed.
+
+---
+
+## Discrimination Sensor
+
+**Isolation method**: `git -C admin worktree add <scratch> HEAD` (two separate real git worktrees, one per mutation; no `git stash`). Neither `admin-panel` container has a bind mount, so each mutated file was copied in with `docker compose cp` (after first backing up the container's live copy with `docker compose cp admin-panel:<path> <backup>`), the relevant gate command was run inside the running container, then the original file was `docker compose cp`'d back in to restore it. Baseline `git status --porcelain` on `admin` was empty before sensor work; both worktrees were removed (`git worktree remove --force`) and the tree re-confirmed empty after each mutation. Root-repo `git status --porcelain` shows the same 4 pre-existing modified files (`.specs/LESSONS.md`, `.specs/features/admin-panel/spec.md`, `.specs/features/admin-panel/validation.md`, `.specs/lessons.json`) both before and after sensor work — unrelated to the sensor, carried over from this validation pass's own edits — so isolation held.
+
+| Mutation | File:line | Description | Killed? |
+| -------- | --------- | ------------ | ------- |
+| 1 | `admin/src/infrastructure/api/eventsApi.ts:38-42` | `deleteEvent` changed to always `return true` regardless of `response.ok` (a failed DELETE reads as success) | ✅ Killed — `npx playwright test events.spec.ts -g "failed delete"` against the mutated container: "a failed delete shows an error instead of silently doing nothing" failed — `getByRole('alert')` timed out, not found. The mutated code reports the mocked 403 as a success, so the component never sets `deleteError`, and the test's expectation of a visible error message goes unmet — exactly the silent-failure regression this test exists to catch. |
+| 2 | `admin/src/presentation/pages/Events/EventList.tsx:47-52` | Removed the `if (deleted) {...} else {...}` branch in `handleDelete` — now unconditionally filters the row out and never sets `deleteError`, so a failed delete still removes the row and shows no error | ✅ Killed — `npx vitest run EventList.test.tsx` against the mutated container: "GIVEN deletion fails WHEN the organizer confirms Delete THEN it shows an error and keeps the row" failed — `waitFor(() => expect(screen.getByRole('alert'))...)` timed out |
+
+**Sensor depth**: lightweight (default tier) — 2 targeted mutations covering both new failure-handling behaviors this fix introduced (the API layer's success/failure signal, and the component's branching on it).
+**Result**: 2/2 killed — PASS ✅.
+
+---
+
+## Gate Check (MANDATORY, re-run independently)
+
+All commands re-run fresh from the current merged `HEAD` (`69c5ef5`), against the rebuilt `admin-panel` container (`docker compose build admin-panel` + `up -d --force-recreate admin-panel`, since the container has no bind mount).
+
+| Gate command | Result |
+| --- | --- |
+| `docker compose exec admin-panel npm test` (`vitest run`) | ✅ 6 test files, 40/40 passed |
+| `docker compose exec admin-panel npm run lint` (`oxlint`) | ✅ 0 warnings, 0 errors, 31 files |
+| `docker compose exec admin-panel npm run build` (`tsc -b && vite build`) | ✅ 43 modules transformed, built in 216ms, no type errors |
+| `ADMIN_PANEL_API_URL=http://backend:8000 CORS_ALLOWED_ORIGINS=... docker compose up -d --wait admin-panel backend` then `docker compose --profile test run --rm --no-deps playwright sh -c 'cd /e2e/admin && npm ci && npx playwright test'` | ✅ 16/16 passed |
+
+- **Test count before this fix**: 36 Vitest + 13 Playwright = 49
+- **Test count after this fix**: 40 Vitest + 16 Playwright = 56
+- **Delta**: +4 Vitest, +3 Playwright — 0 removed, 0 weakened
+- **Skipped tests**: none
+- **Failures**: none
+
+Note: the plain `make test-e2e` target is currently broken for unrelated reasons (empty `website`/`landingpage` scaffolds fail to build) — a pre-existing, out-of-scope gap, not touched by this fix. The containerized e2e run above was used instead, per this project's AD-004/008/009 (nothing runs on the host).
+
+---
+
+## Code Quality
+
+| Principle | Status |
+| --- | --- |
+| Minimum code (no speculative flexibility) | ✅ — `deleteEvent` mirrors `duplicateEvent`'s existing shape exactly; no extra config or unused abstraction |
+| Surgical changes (only files required for the fix) | ✅ — diff confined to `eventsApi.ts`, `EventList.tsx`, `EventForm.test.tsx`, `EventList.test.tsx`, and `events.spec.ts` |
+| No scope creep | ✅ |
+| Matches existing patterns/style | ✅ — confirm-then-act + explanatory error-on-failure matches the pattern `140c959` already established for publish/venue-fetch failures; GIVEN/WHEN/THEN test naming preserved |
+| Would senior engineer approve? | ✅ |
+| Tests map to acceptance criteria and are non-shallow | ✅ — each delete test targets a distinct rendered outcome (row removed / row kept+no call / row kept+alert shown), not just "no crash" |
+| Spec-anchored outcome check (asserted values match spec) | ✅ — AC2 and AC4 both now have exact assertions (see table above) |
+| Per-layer Coverage Expectation met | ✅ — delete now has happy + cancel + error-path coverage at both the unit (EventList.test.tsx) and e2e (events.spec.ts) layers, matching the coverage already given to publish/duplicate |
+| Every test in scope maps to a spec AC or Done-when criterion (no unclaimed tests) | ✅ — all 7 new tests (4 Vitest + 3 Playwright) map directly to AC2 or AC4 |
+| Documented project quality/testing guidelines followed | `docs/admin-panel/qor-design-tokens.md` (untouched by this fix), `.specs/features/admin-panel/design.md` Coding Conventions (AD-012/013) — same as the original Phase 9 pass |
+
+---
+
+## Edge Cases (delta from prior entry)
+
+- [x] Event deletion (spec AC4) — now handled: confirm dialog, success removes row, failure shows an error and keeps the row (`EventList.tsx:44-52`, unit + e2e tested)
+
+---
+
+## Requirement Traceability Update
+
+| Requirement | Previous Status | New Status |
+| --- | --- | --- |
+| ADMIN-07 | Execute / Needs Fix — AC2's frontend edit-save path had no test evidence (Fix 2) | Execute / **Verified** — AC2 now covered, evidence above |
+| ADMIN-09 | Execute / Needs Fix — AC4 delete had no frontend UI/test at all (Fix 1); duplicate half already verified | Execute / **Verified** — AC4 now covered, evidence above |
+
+(`spec.md`'s traceability table lines 209 and 211 updated to match.)
+
+---
+
+## Summary
+
+**Overall**: ✅ **Ready**
+
+**Spec-anchored check**: 2/2 re-verified ACs (AC2, AC4) matched spec-defined outcomes with fresh `file:line` evidence.
+**Sensor**: 2/2 mutations killed.
+**Gate**: 40 Vitest + 16 Playwright all passed, 0 failed, 0 skipped, build/lint clean.
+
+**What works**: `deleteEvent()` is now wired end-to-end — API layer, UI action with confirm step, error handling on failure — and covered by 4 new unit tests plus 3 new e2e tests spanning the confirm/cancel/failure paths, both empirically confirmed to catch regressions (discrimination sensor: 2/2 killed). The edit/update branch of `EventForm`'s save handler is now also directly tested, closing the AC2 coverage gap.
+
+**Issues found**: None outstanding for either gap.
+
+**Next steps**: None — both Fix 1 and Fix 2 are closed. No further fix→re-verify iterations needed for Phase 9.
+
+**Final overall verdict: ✅ PASS.** Both gaps from the prior FAIL entry (AC4 delete missing, AC2 edit untested) are closed; no gaps remain for T25/T26.
