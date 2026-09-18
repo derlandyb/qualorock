@@ -876,12 +876,12 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Event list rows sit on `#191c24` cards, `6px` radius, no shadow (verified: dashboard stat-card tokens)
-- [ ] Status badges (draft/published/cancelled/closed) reuse the verified pill tokens (`6px` radius, `4px 8px` padding, `12px/500` white text) mapped to `#8f5fe8` info / `#00d25b` success / `#fc424a` danger / `#e4eaec` secondary respectively
-- [ ] Table header cells: `rgb(108,114,147)` text, `14px/700` (verified: dashboard Order Status table header)
-- [ ] Form inputs reuse the T23 input tokens (`#191c24` bg, `#2c2e33` border, `2px` radius)
-- [ ] 'Publish'/'Save' actions use the Default Primary button spec; cap-exceeded state shows an `upgrade_required` message using the `#ffab00` warning tint, not a raw error string
-- [ ] Duplicate action creates a new draft without navigating away from the list
+- [x] Event list rows sit on `#191c24` cards, `6px` radius, no shadow (verified: dashboard stat-card tokens)
+- [x] Status badges (draft/published/cancelled/closed) reuse the verified pill tokens (`6px` radius, `4px 8px` padding, `12px/500` white text) mapped to `#8f5fe8` info / `#00d25b` success / `#fc424a` danger / `#e4eaec` secondary respectively
+- [x] Table header cells: `rgb(108,114,147)` text, `14px/700` (verified: dashboard Order Status table header)
+- [x] Form inputs reuse the T23 input tokens (`#191c24` bg, `#2c2e33` border, `2px` radius)
+- [x] 'Publish'/'Save' actions use the Default Primary button spec; cap-exceeded state shows an `upgrade_required` message using the `#ffab00` warning tint, not a raw error string
+- [x] Duplicate action creates a new draft without navigating away from the list
 
 **Tests**: visual
 **Gate**: quick
@@ -904,9 +904,9 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Card and table styling matches the verified reference values
-- [ ] Status badge colors match the mapped semantic hex values exactly
-- [ ] Any mismatch is filed as a fix note before this phase is marked done
+- [x] Card and table styling matches the verified reference values
+- [x] Status badge colors match the mapped semantic hex values exactly
+- [x] Any mismatch is filed as a fix note before this phase is marked done
 
 **Tests**: visual
 **Gate**: quick
