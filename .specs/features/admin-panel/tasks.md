@@ -654,7 +654,7 @@ T43 -> T44
 
 ---
 
-### T17: EngagementDashboardController
+### T17: EngagementDashboardController ✅
 
 **What**: Per-event and aggregate stats (views, favorites, ticket-link clicks, interest count), reading `event_stats` rows written by mobile-app/web-app.
 **Where**: `backend/app/Presentation/Http/Controllers/Organizer/EngagementDashboardController.php`
@@ -668,9 +668,11 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] GIVEN an event with recorded views/favorites/clicks/interest WHEN the organizer requests its dashboard THEN all four counts are returned - test passes
-- [ ] GIVEN multiple events WHEN requesting the aggregate view THEN totals sum correctly across the organizer's own events only - test passes
-- [ ] Gate check passes: `php artisan test --filter=EngagementDashboard`
+- [x] GIVEN an event with recorded views/favorites/clicks/interest WHEN the organizer requests its dashboard THEN all four counts are returned - test passes
+- [x] GIVEN multiple events WHEN requesting the aggregate view THEN totals sum correctly across the organizer's own events only - test passes
+- [x] Gate check passes: `php artisan test --filter=EngagementDashboard`
+
+SPEC_DEVIATION: `event_stats`'s schema wasn't specified anywhere in design.md (only "written into shared `event_stats` tables"). Filled here as an admin-panel-owned migration (id, event_id FK unique, views/favorites/ticket_link_clicks/interest counts, timestamps) - see `.specs/STATE.md` AD-023 for the full ownership rationale and boundary (event_interests/friendships stay entirely web-app/mobile-app-owned, not touched here).
 
 **Tests**: integration
 **Gate**: full
@@ -696,6 +698,8 @@ T43 -> T44
 - [ ] GIVEN an event with interested users WHEN the organizer opens its audience view THEN the count and list are returned - test passes
 - [ ] GIVEN an interested user with mutual friends attending WHEN their detail is requested THEN those mutual friends are listed - test passes
 - [ ] Gate check passes: `php artisan test --filter=AudienceInterest`
+
+**Blocker (explicit ownership rule, not just a scheduling gap)**: This controller needs `event_interests` (who marked interest) and `friendships` (mutual-friends lookup) - both are consumer-side data owned entirely by `web-app`/`mobile-app` (user-confirmed this session; see `.specs/STATE.md` AD-023). admin-panel does not create, migrate, or stub either table, even minimally, so T18 stays blocked until `web-app`'s own Execute ships those tables and a cross-service read contract for admin-panel to query them (still undecided) - not merely until `web-app`'s Execute "begins."
 
 **Tests**: integration
 **Gate**: full
@@ -915,7 +919,7 @@ T43 -> T44
 
 ---
 
-### T27: Build engagement dashboard + audience/info-request screen
+### T27: Build engagement dashboard + audience/info-request screen ✅ (scoped down)
 
 **What**: Per-event and aggregate stat cards (views/favorites/clicks/interest), an interested-users list with mutual-friends detail, and an info-request list with a reply action.
 **Where**: `admin/src/presentation/pages/Engagement/Dashboard.tsx, admin/src/presentation/pages/Engagement/Audience.tsx`
@@ -929,18 +933,20 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Stat cards match the verified dashboard card tokens (`#191c24`, `6px` radius, no shadow)
-- [ ] Reply action on an info request uses the Default Primary button spec
-- [ ] Interested-users list rows follow the same table-header token as the event list (`rgb(108,114,147)`, `14px/700`)
+- [x] Stat cards match the verified dashboard card tokens (`#191c24`, `6px` radius, no shadow)
+- [x] Reply action on an info request uses the Default Primary button spec
+- [ ] ~~Interested-users list rows follow the same table-header token as the event list (`rgb(108,114,147)`, `14px/700`)~~ - dropped, see SPEC_DEVIATION below
+
+SPEC_DEVIATION: Built `Dashboard.tsx` (stat cards + per-event breakdown table, ADMIN-11/12) and `InfoRequests.tsx` instead of `Audience.tsx` (ADMIN-16's reply UI; its backend, `EventInfoRequestController`, already shipped in T19/Phase 9). The interested-users/mutual-friends list (ADMIN-15) is dropped this phase - it depends on T18, which is itself blocked on `event_interests`/`friendships` data that admin-panel does not own (see T18's blocker note and `.specs/STATE.md` AD-023). ADMIN-15 stays Blocked/Not-started in `spec.md`'s traceability table.
 
 **Tests**: visual
 **Gate**: quick
 
-**Commit**: `feat(admin-panel): add engagement dashboard and audience/info-request screen`
+**Commit**: `feat(admin-panel): add engagement dashboard and info-request reply screen`
 
 ---
 
-### T28: Verify Screen: Engagement & audience against Corona reference
+### T28: Verify Screen: Engagement & audience against Corona reference ✅ (scoped down)
 
 **What**: Screenshot the engagement dashboard and audience screen, compare against the Corona reference dashboard-card and table tokens.
 **Where**: `admin/e2e/visual/engagement.spec.ts`
@@ -954,13 +960,15 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Stat card and table styling matches the verified reference values
-- [ ] Any mismatch is filed as a fix note before this phase is marked done
+- [x] Stat card and table styling matches the verified reference values
+- [x] Any mismatch is filed as a fix note before this phase is marked done (none found)
+
+SPEC_DEVIATION: no audience/mutual-friends assertions - that screen wasn't built this phase (see T27's SPEC_DEVIATION). Covers only the dashboard stat cards/breakdown table and the info-request reply button.
 
 **Tests**: visual
 **Gate**: quick
 
-**Commit**: `test(admin-panel): verify engagement and audience screen against Corona reference`
+**Commit**: `test(admin-panel): verify engagement dashboard and info-request screen against Corona reference`
 
 ---
 

@@ -210,12 +210,12 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 | ADMIN-08 | P1: Register and manage events | Design | Pending |
 | ADMIN-09 | P1: Register and manage events | Execute | Verified (T14 backend + T25 frontend delete UI now implemented and tested — Phase 9 re-verify iteration 1, AC4) |
 | ADMIN-10 | P1: Register and manage events | Execute | Verified (T14 backend + T25/T26 frontend — Phase 9 validation, AC6) |
-| ADMIN-11 | P2: Engagement dashboard | Design | Pending |
-| ADMIN-12 | P2: Engagement dashboard | Design | Pending |
+| ADMIN-11 | P2: Engagement dashboard | Execute | Verified (T17 backend + T27/T28 frontend — Phase 10 validation, AC1/AC2/AC3) |
+| ADMIN-12 | P2: Engagement dashboard | Execute | Verified (T17 backend + T27/T28 frontend — Phase 10 validation, AC2) |
 | ADMIN-13 | P2: Manage venue ("Casa de Shows") presence | Design | Pending |
 | ADMIN-14 | P2: Manage venue ("Casa de Shows") presence | Design | Pending |
-| ADMIN-15 | P2: Track audience interest and respond to requests | Design | Pending |
-| ADMIN-16 | P2: Track audience interest and respond to requests | Execute | Done (T19) |
+| ADMIN-15 | P2: Track audience interest and respond to requests | Design | Blocked — needs `event_interests`/`friendships`, both owned entirely by `web-app`/`mobile-app` (not built here by explicit user rule, see `.specs/STATE.md` AD-023); not merely a scheduling gap |
+| ADMIN-16 | P2: Track audience interest and respond to requests | Execute | Verified (T19 backend + T27/T28 frontend — Phase 10 validation, AC3) |
 | ADMIN-17 | P2: Manage promoters | Design | Pending |
 | ADMIN-18 | P2: Manage promoters | Design | Pending |
 | ADMIN-19 | P2: Manage promoters | Design | Pending |

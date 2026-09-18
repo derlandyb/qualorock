@@ -1699,3 +1699,164 @@ Note: the plain `make test-e2e` target is currently broken for unrelated reasons
 **Next steps**: None — both Fix 1 and Fix 2 are closed. No further fix→re-verify iterations needed for Phase 9.
 
 **Final overall verdict: ✅ PASS.** Both gaps from the prior FAIL entry (AC4 delete missing, AC2 edit untested) are closed; no gaps remain for T25/T26.
+
+---
+
+## Phase 10 Validation
+
+## Validation: admin-panel Phase 10 (T17, T27/T28) - PASS ✅
+
+# Admin Panel Validation — Phase 10 (Engagement dashboard & info-request reply screen)
+
+**Date**: 2026-09-18
+**Spec**: `.specs/features/admin-panel/spec.md` — "P2: Engagement dashboard" (lines 90-104) and "P2: Track audience interest and respond to requests" (lines 122-136)
+**Verifier**: independent sub-agent (author ≠ verifier)
+**Scope**: T17 (`EngagementDashboardController`, backend) and T27/T28 as actually built (engagement dashboard + info-request reply screen). **ADMIN-15 (audience/interested-users/mutual-friends screen) is explicitly out of scope** — it is Blocked per `.specs/STATE.md` AD-023 and no code for it exists; its absence is not treated as a gap here.
+**Diff range**:
+- `api` submodule: `51da5b9..8e342f0` — `8e342f0 feat(admin-panel): add EngagementDashboardController`
+- `admin` submodule: `69c5ef5..HEAD` — `6063428 feat(admin-panel): add engagement dashboard and info-request reply screen`, `827114f test(admin-panel): verify engagement dashboard and info-request screen against Corona reference`
+
+---
+
+### Task Completion
+
+| Task | Status | Notes |
+| --- | --- | --- |
+| T17 | ✅ Done | `EngagementDashboardController` + `GetEventEngagement`/`GetOrganizerEngagementSummary` use cases, `event_stats` migration — all 3 "Done when" checks satisfied, gate passes |
+| T18 | ⛔ Blocked (correctly, not a gap) | Explicit ownership blocker (AD-023) documented in its own task entry; not attempted this phase |
+| T19 | ✅ Done (prior phase) | `EventInfoRequestController` shipped earlier (commit `9502cce`), reused here by T27's `InfoRequests.tsx` — not part of this diff, correctly not re-claimed as new work |
+| T27 | ✅ Done (scoped down, documented) | `Dashboard.tsx` + `InfoRequests.tsx` built instead of `Dashboard.tsx` + `Audience.tsx`; SPEC_DEVIATION note at `tasks.md:940` accurately describes the substitution and its reason |
+| T28 | ✅ Done (scoped down, documented) | `e2e/visual/engagement.spec.ts` covers only the dashboard + info-request reply UI; SPEC_DEVIATION note at `tasks.md:966` accurately scopes it |
+
+---
+
+### Spec-Anchored Acceptance Criteria
+
+#### P2: Engagement dashboard (ADMIN-11, ADMIN-12)
+
+| Criterion (WHEN X THEN Y) | Spec-defined outcome | `file:line` + assertion expression | Result |
+| --- | --- | --- | --- |
+| AC1: WHEN an organizer opens an event's statistics view THEN the system SHALL show counts of interested users, views, favorites, and external ticket-link clicks for that event | All four exact counts (42/10/5/20) returned for the requested event | `api/tests/Feature/Organizer/EngagementDashboardControllerTest.php:43-49` — `$response->assertJsonFragment(['eventId' => $event->id, 'viewsCount' => 42, 'favoritesCount' => 10, 'ticketLinkClicksCount' => 5, 'interestCount' => 20])` | ✅ PASS |
+| AC2: WHEN an organizer opens the dashboard THEN the system SHALL show performance across all of their events | Aggregate summary returns exactly the organizer's own 2 events with their exact per-event counts, excluding another organizer's event (999s) entirely | `api/tests/Feature/Organizer/EngagementDashboardControllerTest.php:71-74` — `assertJsonCount(2,'data')`, `assertJsonFragment(['eventId'=>$eventOne->id,'viewsCount'=>10])`, `assertJsonFragment(['eventId'=>$eventTwo->id,'viewsCount'=>30])`, `assertJsonMissing(['eventId'=>$otherEvent->id])`; frontend consumption at `admin/src/presentation/pages/Engagement/Dashboard.tsx:22` (`totals()` sums all returned events into 4 stat cards) and `:52-70` (per-event breakdown table), unit-tested at `admin/src/presentation/pages/Engagement/__tests__/Dashboard.test.tsx:24-45` (asserts summed totals 30/6/3/8 for a 2-event fixture) | ✅ PASS |
+| AC3: IF an event has zero recorded activity THEN the system SHALL show explicit zero-value stats rather than omitting the event from the dashboard | Event with no `event_stats` row still appears with all four counts = 0, on both the per-event show and the aggregate summary | `api/tests/Feature/Organizer/EngagementDashboardControllerTest.php:91-97` (summary) and `:102-108` (single-event show) — both `assertJsonFragment([...'viewsCount'=>0,'favoritesCount'=>0,'ticketLinkClicksCount'=>0,'interestCount'=>0])`; frontend zero-row rendering unit-tested at `admin/src/presentation/pages/Engagement/__tests__/Dashboard.test.tsx:47-59` | ✅ PASS |
+
+**IDOR guard (not a numbered AC but load-bearing for AC1/AC2's ownership scoping)**: `api/tests/Feature/Organizer/EngagementDashboardControllerTest.php:113-124` — `it_denies_showing_engagement_for_another_organizers_event` asserts `$response->assertForbidden()` when organizer B requests organizer A's event; backed by `ShowEventEngagementRequest extends OrganizerOwnedEventRequest` (`api/app/Presentation/Http/Requests/Organizer/ShowEventEngagementRequest.php:5`), reusing the same ownership-policy pattern as T11/T13's `EventController`. ✅ PASS
+
+#### P2: Track audience interest and respond to requests — AC3 only (ADMIN-16; AC1/AC2 are ADMIN-15, out of scope)
+
+| Criterion (WHEN X THEN Y) | Spec-defined outcome | `file:line` + assertion expression | Result |
+| --- | --- | --- | --- |
+| AC3: WHEN a user submits an info/update request on an event THEN the system SHALL surface that request to the organizer with the ability to respond | Requests list for the organizer's event is fetched and rendered; organizer can submit a reply and the stored response then replaces the reply form on subsequent reads | `admin/src/presentation/pages/Engagement/__tests__/InfoRequests.test.tsx:34-42` (message surfaced), `:44-60` (`GIVEN an unanswered request WHEN the organizer submits a reply THEN the response replaces the reply form` — asserts `respondToEventInfoRequestMock` called with `(3, 'Doors open at 8pm.')` and the stored response text renders, reply form gone), `:62-70` (already-answered request shows stored response, not a form); backend contract (shipped in a prior phase, reused unchanged here) at `api/app/Presentation/Http/Controllers/Organizer/EventInfoRequestController.php:40-49` (`toResponse` field set) matches the frontend's `EventInfoRequest` type 1:1 (`admin/src/domain/types/eventInfoRequest.ts:2-9`) | ✅ PASS |
+
+**Status**: ✅ All in-scope ACs (ADMIN-11 AC1/AC3, ADMIN-12 AC2, ADMIN-16 AC3) matched their spec-defined outcomes with `file:line` evidence. No spec-precision gaps found — the spec's outcomes for this story were already stated as concrete, checkable values (exact counts, explicit zero-fill, presence of a reply path).
+
+---
+
+### SPEC_DEVIATION Consistency Check (dropped ADMIN-15/audience scope)
+
+Explicitly requested check, not just "does the code work":
+
+| Location | Statement | Consistent? |
+| --- | --- | --- |
+| `tasks.md:684-707` (T18) | Documents the exact ownership blocker (`event_interests`/`friendships` owned by web-app/mobile-app, not admin-panel), references AD-023, and correctly states T18 is blocked until web-app's own Execute ships those tables + a read contract | ✅ Consistent |
+| `tasks.md:922,938,940` (T27) | Title suffixed "(scoped down)"; strikes through the interested-users-list Done-when item with a pointer to the SPEC_DEVIATION note; SPEC_DEVIATION note names the actual files built (`Dashboard.tsx`, `InfoRequests.tsx` instead of `Dashboard.tsx`+`Audience.tsx`), names ADMIN-15 as dropped, and states it "stays Blocked/Not-started in spec.md's traceability table" | ✅ Consistent |
+| `tasks.md:949,966` (T28) | Title suffixed "(scoped down)"; SPEC_DEVIATION note states no audience/mutual-friends assertions exist in `engagement.spec.ts`, scopes the file's actual coverage | ✅ Consistent — confirmed empirically: `e2e/visual/engagement.spec.ts` (62 lines, read in full) contains exactly 2 tests, both scoped to the dashboard/info-request UI; zero references to audience, interested-users, or mutual-friends |
+| `spec.md:217` (ADMIN-15 traceability row) | `Blocked — needs event_interests/friendships, both owned entirely by web-app/mobile-app (not built here by explicit user rule, see .specs/STATE.md AD-023); not merely a scheduling gap` | ✅ Consistent with T18's blocker note and AD-023 |
+| `.specs/STATE.md` AD-023 (lines 183-190) | States the same ownership boundary, names T18/ADMIN-15 as the consequence, dated 2026-09-18, status active | ✅ Consistent with all of the above |
+
+**One inconsistency found (documentation-only, not a code gap)**: `.specs/STATE.md`'s **Handoff** section (lines 192-201, last updated for Phase 9) still describes Phase 10 as not started and lists T17/T18 as blocked ("Next step: Phase 10 ... is next in file order, but is likely still blocked"; "Blockers: T17/T18 (and transitively Phase 10's T27) blocked on web-app Execute"). This is stale relative to AD-023 (added this session, dated 2026-09-18) and this Phase 10 diff — T17 is done and unblocked (it built its own `event_stats` table rather than waiting on web-app), and only T18/ADMIN-15 remains blocked, not T17. This does not affect the correctness of the shipped code, but a future agent resuming from the Handoff section alone would be misled into re-deriving Phase 10 as not-yet-started. **Recommend**: update the Handoff's "Phase / Task", "Next step", and "Blockers" lines to reflect Phase 10's actual completion state before the next session begins.
+
+---
+
+### Discrimination Sensor
+
+Ran in the real submodule working trees (mutate → `docker cp` into the running containers → test → `git checkout --` to restore → re-`docker cp` the restored file → confirm `git status --porcelain` clean). No git worktree was used (containers require a `docker cp` step regardless, per the environment constraint, making a scratch-copy-in-place the simpler equivalent). Baseline `git status --porcelain` was clean in both `api` and `admin` before and after.
+
+| # | File:line | Description | Killed? |
+| --- | --- | --- | --- |
+| 1 | `api/app/Application/UseCases/Engagement/GetEventEngagement.php:21` | Zero-fill fallback's `interestCount: 0` changed to `interestCount: 1` | ✅ Killed — `it_zero_fills_events_with_no_event_stats_row` failed (both the summary and single-event assertions) |
+| 2 | `api/app/Application/UseCases/Engagement/GetOrganizerEngagementSummary.php:25-31` | Removed the `$stats[$event->id] ??` lookup entirely so the summary always zero-fills, ignoring real `event_stats` rows | ✅ Killed — `it_scopes_the_aggregate_summary_to_the_organizers_own_events` failed (`viewsCount` expected 10/30, got 0/0) |
+| 3 | `admin/src/presentation/pages/Engagement/Dashboard.tsx:13` | `totals()`'s Favorites card summed `event.viewsCount` instead of `event.favoritesCount` | ✅ Killed — Dashboard.test.tsx's summed-totals test failed (expected Favorites card to read "6", got "30") |
+
+**Note on a discarded 4th mutation candidate**: an initial attempt to break `EloquentEventStatsRepository::findAllByOrganizerId`'s organizer-scoping `whereHas` clause was drafted but not run — on inspection it would not have been caught by the existing tests, because `GetOrganizerEngagementSummary::handle()` only ever looks up `$stats[$event->id]` for event IDs already scoped by `EventRepositoryInterface::findByOrganizerId()`; an unscoped stats query would add unreachable extra map entries, not wrong values for the organizer's own events. This is worth a note rather than a fix task: the scoping is still enforced today (by the `$events` lookup, not `$stats`), so there's no live IDOR — but `EloquentEventStatsRepository::findAllByOrganizerId`'s own `whereHas` filter is currently *not* directly discriminated by any test (it's redundant defense-in-depth, not a gap in the visible behavior). Flagging as a documentation note, not a fix task, since the AC is still correctly enforced end-to-end.
+
+**Sensor depth**: lightweight (default tier) — 3 mutations run, 3 killed, 1 candidate discarded before running (would not have been meaningful)
+**Result**: 3/3 killed - PASS ✅
+
+---
+
+### Gate Check
+
+- **Gate commands run**:
+  - `docker compose exec -T backend php artisan test` (full suite)
+  - `docker compose exec -T admin-panel npm test -- --run` (Vitest)
+  - `docker compose exec -T admin-panel npm run build` (`tsc -b && vite build`)
+  - `docker compose --profile test run --rm --no-deps playwright sh -c "cd /e2e/admin && npx playwright test"`
+- **Backend**: 83 passed, 0 failed, 0 skipped (253 assertions) — includes the 4 new `EngagementDashboardControllerTest` tests
+- **Frontend unit (Vitest)**: 45 passed, 0 failed, 0 skipped across 8 test files — includes the 2 new `Dashboard.test.tsx` and 3 new `InfoRequests.test.tsx` tests
+- **Frontend build**: clean (`tsc -b && vite build` succeeded, no type errors)
+- **E2E (Playwright)**: 18 passed, 0 failed — includes the 2 new `engagement.spec.ts` tests (stat-card/breakdown-table tokens, info-request reply button token)
+- **Test count before this phase** (per Phase 9's validation entry): 79 backend / 40 Vitest / 16 Playwright
+- **Test count after this phase**: 83 backend (+4) / 45 Vitest (+5) / 18 Playwright (+2)
+- **Delta**: +4 backend, +5 Vitest, +2 Playwright — no tests removed or weakened
+- **Skipped tests**: none
+- **Failures**: none
+
+---
+
+### Code Quality
+
+| Principle | Status |
+| --- | --- |
+| No features beyond what was asked | ✅ — no writer for `event_stats` was built (correctly deferred per AD-023), no audience UI attempted |
+| No abstractions for single-use code | ✅ — `GetEventEngagement`/`GetOrganizerEngagementSummary` are plain single-purpose use cases matching the existing use-case pattern (e.g. `PublishedEventCounter`), no premature interface layering beyond the existing `*RepositoryInterface` convention |
+| No unnecessary "flexibility" added | ✅ |
+| Only touched files required for task | ✅ — `api` diff is additive-only (13 new files, `AppServiceProvider.php`/`routes/admin-panel.php` touched only to register the new binding/routes); `admin` diff is additive-only (9 new files, `AppRoutes.tsx` touched only to add 2 routes) |
+| Didn't "improve" unrelated code | ✅ |
+| Matches existing patterns/style | ✅ — `EngagementDashboardController` mirrors `EventInfoRequestController`'s constructor-injected-use-case + `toResponse()` shape; `ShowEventEngagementRequest extends OrganizerOwnedEventRequest` reuses T11's IDOR pattern; frontend API modules mirror `eventInfoRequestApi.ts`'s `apiFetch`/response-unwrap shape; `Dashboard.tsx`/`InfoRequests.tsx` reuse `formInputClassName`/Tailwind token classes already established in Phase 9's `EventForm.tsx` |
+| Would senior engineer approve? | ✅ |
+| Tests map to acceptance criteria and are non-shallow | ✅ — spot-checked the P2 Engagement dashboard story: each test asserts an exact numeric value or exact JSON-missing check, not just "response is ok" |
+| Spec-anchored outcome check (asserted values match spec) | ✅ — see table above, all exact values |
+| Per-layer Coverage Expectation met (domain 1:1 ACs; routes happy+edge+error) | ✅ — backend covers happy path (AC1/AC2), edge (AC3 zero-fill), and error/ownership path (403 IDOR); frontend covers happy + zero-value rendering + reply-submission + already-answered states |
+| Every test in scope maps to a spec AC, listed edge case, or Done-when criterion | ✅ — no unclaimed tests found in the 4 new backend tests or 5 new frontend unit tests |
+| Documented project quality/testing guidelines followed | `docs/admin-panel/qor-design-tokens.md` (dashboard-card/table/button tokens, reused verbatim from Phase 9 — confirmed `engagement.spec.ts`'s asserted RGB/radius values match `events.spec.ts`'s prior verified values), `.specs/features/admin-panel/design.md` Coding Conventions (AD-012/013 layering — confirmed Domain/Application/Infrastructure/Presentation layering followed for T17) |
+
+---
+
+### Edge Cases
+
+- [x] Event with zero recorded activity shown with explicit zero counts, not omitted (AC3) — handled and tested
+- [x] Cross-organizer access to another organizer's event engagement denied with 403 (IDOR) — handled and tested
+- [x] Already-answered info request shows stored response instead of a reply form — handled and tested
+- [ ] ADMIN-15 (interested-users list, mutual friends) — **not applicable this phase**, explicitly out of scope (Blocked, AD-023); not counted as an unhandled edge case
+
+---
+
+### Requirement Traceability Update
+
+| Requirement | Previous Status | New Status |
+| --- | --- | --- |
+| ADMIN-11 | Execute / Done, pending Verifier | Execute / **Verified** (AC1 + AC3, evidence above) |
+| ADMIN-12 | Execute / Done, pending Verifier | Execute / **Verified** (AC2, evidence above) |
+| ADMIN-16 | Execute / Done, pending Verifier | Execute / **Verified** (AC3, evidence above) |
+| ADMIN-15 | Design / Blocked | **Unchanged — still Blocked** (correctly; no code exists for it this phase, see AD-023) |
+
+(`spec.md`'s traceability table lines 213-214 and 218 updated to match — ADMIN-11/12/16 now read "Verified"; ADMIN-15's line 217 left untouched.)
+
+---
+
+## Summary
+
+**Overall**: ✅ **Ready**
+
+**Spec-anchored check**: 4/4 in-scope ACs (ADMIN-11 AC1, ADMIN-11/12 AC2-AC3, ADMIN-16 AC3) matched spec-defined outcomes with fresh `file:line` evidence. 0 spec-precision gaps.
+**Sensor**: 3/3 mutations killed.
+**Gate**: 83 backend + 45 Vitest + 18 Playwright all passed, 0 failed, 0 skipped.
+
+**What works**: `EngagementDashboardController` (T17) correctly returns exact per-event and organizer-scoped aggregate engagement counts, zero-fills events with no recorded activity rather than omitting them, and denies cross-organizer access (403) — all four backed by dedicated, non-shallow test assertions. The frontend `Dashboard.tsx` consumes and renders these correctly (stat card totals, per-event breakdown table), and `InfoRequests.tsx` (ADMIN-16) lets an organizer see and reply to info requests, with the reply persisting and replacing the form on reload. The deliberate ADMIN-15 scope-down is consistently and accurately documented across `tasks.md`, `spec.md`, and `.specs/STATE.md`'s AD-023.
+
+**Issues found**: None blocking. One documentation-only staleness: `.specs/STATE.md`'s Handoff section (not the decision log) still describes Phase 10 as not-started/blocked — recommend updating it, but it does not affect this Phase's PASS verdict since AD-023 and the traceability table (the two things this validation was asked to check) are already correct and consistent.
+
+**Next steps**: Update `.specs/STATE.md`'s Handoff section (Phase/Task, Next step, Blockers lines) to reflect Phase 10's completion before the next session begins. No fix→re-verify iteration needed for T17/T27/T28 — this is a clean first-pass PASS.
+
+**Final overall verdict: ✅ PASS.** T17 fully implemented and verified; T27/T28 correctly and consistently scoped down with the ADMIN-15 deviation documented everywhere it needs to be; 3/3 sensor mutations killed; full gate green.
