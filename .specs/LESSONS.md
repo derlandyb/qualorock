@@ -38,6 +38,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: AC3 / tests/Feature/Organizer/EventControllerTest.php:206-249 (tests/Feature)
 - last seen: 2026-09-16T22:20:17Z
 
+### L-005 - When a task's Done-when criterion names a route guard or access restriction, verify the guard component and guarded route actually exist in code (not just that the backend returns the right status and a static error page renders) before marking the task complete.
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `admin/src/presentation/routes` · harmful: 0
+- features: admin-panel
+- evidence: ADMIN-05 / tasks.md T23 Done-when bullet 7 (admin/src/presentation/routes)
+- last seen: 2026-09-17T22:47:44Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

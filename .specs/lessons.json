@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 5,
+  "next_id": 6,
   "lessons": [
     {
       "id": "L-001",
@@ -76,6 +76,24 @@
       ],
       "created": "2026-09-16T22:20:17Z",
       "last_seen": "2026-09-16T22:20:17Z"
+    },
+    {
+      "id": "L-005",
+      "key": "ac_gap::when a task s done when criterion names a route guard or access restriction verify the guard component and guarded route actually exist in code not just that the backend returns the right status and a static error page renders before marking the task complete",
+      "text": "When a task's Done-when criterion names a route guard or access restriction, verify the guard component and guarded route actually exist in code (not just that the backend returns the right status and a static error page renders) before marking the task complete.",
+      "signal": "ac_gap",
+      "scope": "admin/src/presentation/routes",
+      "status": "candidate",
+      "features": [
+        "admin-panel"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "ADMIN-05 / tasks.md T23 Done-when bullet 7 (admin/src/presentation/routes)"
+      ],
+      "created": "2026-09-17T22:47:44Z",
+      "last_seen": "2026-09-17T22:47:44Z"
     }
   ]
 }

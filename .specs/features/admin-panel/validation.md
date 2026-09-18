@@ -1129,3 +1129,299 @@ None — no blocking or non-blocking findings requiring a fix task. The one scop
 **Next steps**: none required for this phase's sign-off. When web-app/mobile-app build their consumer-facing event/venue listing queries, they should filter out rows with a non-null `hidden_at` (and, for organizers, exclude soft-deleted `organizer_id`s) to fully close the ADMIN-25 loop end-to-end.
 
 **Final overall verdict: ✅ PASS.** No open findings remain.
+
+---
+---
+
+## Validation: admin-panel Phase 8 (T23-T24) - FAIL ❌
+
+# Admin Panel Validation — Phase 8 (T23–T24: App shell + organizer login/approval-state screen)
+
+**Date**: 2026-09-17
+**Spec**: `.specs/features/admin-panel/spec.md` ("P1: Organizer access is gated by Super Admin approval", lines 52-66; mid-session-approval edge case, line 194)
+**Scope**: Phase 8 only — T23 (`AppShell.tsx` + `Login.tsx`) and T24 (`admin/e2e/visual/login-shell.spec.ts`). This is the **admin frontend's first code** (from-zero Vite/React/TS scaffold in the prior commit); backend was not touched in this phase. Phases 1–7 (backend, validated above) are out of scope here.
+**Diff range**: `admin` submodule, `cee9850..8acf6a4` (merge commit of PR #1, branch `phase-8-app-shell-login` → `main`):
+```
+f39c08e chore(admin): scaffold Vite React TS app with Tailwind and Vitest
+d674598 feat(admin-panel): add app shell and organizer login/approval-state screen
+2df4624 fix(admin-panel): unwrap organizer login response and correct QOR radii
+94295c4 test(admin-panel): verify app shell and login screen against QOR design tokens
+a2bcd05 ci(admin): add lint, build, and test workflow
+207c4b0 fix(admin-panel): address code review findings on Phase 8
+```
+Root repo submodule pointer bumped in commit `db13d88` ("chore(admin-panel): update admin submodule to merged Phase 8 PR").
+**Verifier**: independent sub-agent (author ≠ verifier) — no prior "done" claim trusted; all evidence re-derived from the diff, tests, and live gate/sensor runs.
+
+---
+
+## Task Completion
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| T23  | ⚠️ Partial | Sidebar/canvas/input/button/banner styling and the pending/rejected approval-state flow are fully implemented and test-verified (see AC table below). The Done-when bullet "Super-admin-only pending-organizers list route is unreachable for the organizer guard (403 surfaces as an in-app message, not a raw error page)" is **not implemented**: `admin/src/presentation/routes/AppRoutes.tsx:12-21` defines no super-admin route at all and no guard component exists anywhere in `src/` (confirmed by `grep -rn "SuperAdmin\|guard" src` returning only a comment and an unrelated test URL string). `Forbidden.tsx` exists and renders correctly, but nothing in the app actually routes to it on a 403 — it is only reachable by typing `/forbidden` directly. **tasks.md correctly reflects this**: T23's header carries no `✅` suffix and all 7 of its Done-when checkboxes remain `[ ]`, unlike every completed prior task in this file (T19–T22 all carry `✅`/`[x]`). This verifier's own reading of tasks.md confirms the unchecked state is accurate, not stale — it should **not** be marked `[x]` as-is. |
+| T24  | ✅ Done (as scoped) | `admin/e2e/visual/login-shell.spec.ts` exists, runs, and all 8 tests pass against the real dev build (see Gate Check). It faithfully verifies everything T23 actually built (colors, radii, transition duration, sidebar/body-wrapper width, mobile-breakpoint overflow, pending/rejected banner colors+text). It does **not** and cannot verify the missing route-guard behavior from T23, since there is no route-guard behavior in the app to point Playwright at — the suite's two "super-admin route" tests instead assert the backend endpoint's status code directly (`request.get(...)` → 403) and that `/forbidden` renders correctly when navigated to directly, which are the closest available proxies but do not exercise an actual client-side guard/redirect. tasks.md's T24 checkboxes are also `[ ]`, consistent with T23 being incomplete (T24 depends on T23 per its `Depends on` field). |
+
+**Test Integrity Check**: Test count before this phase: 0 (the prior commit `f39c08e` scaffolds the app with zero tests — confirmed via `git show f39c08e --stat`, no `*.test.*` files added). Test count after: 24 (16 Vitest unit/component tests + 8 Playwright e2e tests). No decrease, no weakened assertions found.
+
+---
+
+## Spec-Anchored Acceptance Criteria
+
+| Criterion (WHEN X THEN Y) | Spec-defined outcome | `file:line` + assertion expression | Result |
+| -------------------------- | --------------------- | ------------------------------------ | ------ |
+| ADMIN-01: WHEN a Super Admin opens the pending-organizers list THEN the system SHALL show every organizer account in `pending` state with signup details | List contains only `pending` organizers with signup fields | Already `file:line`-verified at the backend layer in Phase 2 (`tests/Feature/SuperAdmin/OrganizerApprovalTest.php:19-33`, see this file's Phase 2 section, line 244). **T23/T24 build no frontend UI for this list at all** — `grep -rn "pending-organizers" admin/src` returns nothing. Out of this phase's actual scope despite being listed as a covered requirement in tasks.md's T23/T24 header. | ⚠️ Not covered by this phase (pre-existing backend coverage only; frontend list UI does not exist yet) |
+| ADMIN-04: IF an organizer whose account is `pending`/`rejected` attempts to log in THEN the system SHALL deny access to management and show current state (+ rejection reason, if any) | Login screen shows the approval-state banner, never navigates past `/login`, and shows the rejection reason when present | `admin/src/presentation/pages/__tests__/Login.test.tsx:57-70` — `expect(screen.getByTestId('approval-banner')).toBeInTheDocument()` + `expect(screen.queryByTestId('app-shell')).not.toBeInTheDocument()` (pending); `:72-85` — `expect(screen.getByText('Incomplete documentation')).toBeInTheDocument()` (rejected, with reason); `admin/src/presentation/components/__tests__/ApprovalBanner.test.tsx:8-22` — asserts `bg-qor-warning`/`bg-qor-danger` classes and exact text per state; `admin/e2e/visual/login-shell.spec.ts:53-72` — `toHaveCSS('background-color', 'rgb(255, 171, 0)')` (pending, live-rendered); `:74-94` — `toHaveCSS('background-color', 'rgb(252, 66, 74)')` + `toContainText('Incomplete documentation')` (rejected, live-rendered) | ✅ PASS — exact colors, exact text, and "does not navigate" all asserted, not just presence |
+| ADMIN-05: THE system SHALL restrict the pending-organizers list and approve/reject actions to Super Admin accounts only | Non-super-admin caller denied; frontend surfaces denial as an in-app message, not a raw error page | Already `file:line`-verified at the backend layer in Phase 2 (`tests/Feature/SuperAdmin/OrganizerApprovalTest.php:71-82`, `tests/Unit/Policies/SuperAdminOrganizerPolicyTest.php:36-51`, see Phase 2 section, line 248). At the frontend layer added in this phase: `admin/e2e/visual/login-shell.spec.ts:133-136` confirms the real backend still returns 403 for `GET /api/admin/v1/super-admin/organizers` with no super-admin session, and `:138-141` confirms `Forbidden.tsx` renders an in-app message when navigated to directly. **Gap**: no code path in `admin/src` actually connects the two — there is no route guard that intercepts a 403 (or a route restriction) and redirects to `/forbidden`; the e2e test reaches `/forbidden` by direct navigation, not by being denied a protected route. This is exactly the T23 Done-when bullet flagged unmet above. | ❌ GAP — backend half re-confirmed via existing Phase 2 evidence; the frontend route-guard mechanism this phase's own Done-when criteria promised does not exist |
+
+**Status**: ❌ Gap present on ADMIN-05's frontend half (no client-side route guard); ADMIN-01 not in this phase's actual scope despite being listed; ADMIN-04 fully covered.
+
+---
+
+## Edge Cases
+
+- [x] Invalid credentials (401): `Login.test.tsx:39-53` and `login-shell.spec.ts:33-51` both assert the exact backend error message is shown, no banner appears, and the URL stays `/login`.
+- [x] Network failure (fetch rejects rather than resolving): `Login.test.tsx:102-112` — `useOrganizerLogin.submit()` now wraps the call in try/catch (fixed in `207c4b0`; previously this left the form stuck "submitting" forever with no error — a genuine bug the code-reviewer subagent caught pre-merge, confirmed fixed by reading the current `useOrganizerLogin.ts:32-36`, which comments exactly this rationale).
+- [x] Mid-session approval edge case (spec.md:194, "IF an organizer's account is approved mid-session THEN the system SHALL require re-authentication before granting management access, rather than upgrading a live session silently") — this is a backend session-semantics requirement, already covered and sensor-confirmed at the backend layer in Phase 2 (`tests/Feature/Organizer/OrganizerLoginGateTest.php:86-105`, see Phase 2 section lines 257 and 268). Nothing in T23/T24's frontend scope re-implements or duplicates this; correctly untouched.
+- [ ] Super-admin-only route unreachable for the organizer guard — **NOT handled**: see ADMIN-05 gap above. No fix task existed prior to this report; one is created below.
+
+---
+
+## Discrimination Sensor
+
+Isolation method: `git worktree add /tmp/admin-sensor-scratch HEAD` from inside `admin/` (a real git worktree, not a file copy — the submodule's own `.git` worked cleanly here, unlike the Phase 2 report's PHP submodule). `node_modules` symlinked into the scratch to avoid a redundant `npm ci`. Baseline `git status --porcelain` on the real `admin/` tree was captured clean before sensor work; re-confirmed identical (empty, via `diff`) after `git worktree remove --force` cleanup. No `git stash` used at any point.
+
+| Mutation | File:line | Description | Killed? |
+| -------- | --------- | ------------ | ------- |
+| 1 | `admin/src/presentation/pages/Login.tsx:21` | Flipped `result?.approvalState === ORGANIZER_APPROVAL_STATE.approved` → `!==` | ✅ Killed — `Login.test.tsx`'s "GIVEN a pending organizer" (banner-shown), "GIVEN a rejected organizer" (banner-shown), and "GIVEN an approved organizer" (navigates-to-shell) tests all failed: an approved login now incorrectly stayed on `/login`, and pending/rejected logins now incorrectly redirected to the app shell |
+| 2 | `admin/src/infrastructure/api/apiClient.ts:34-37` | Removed the `headers.set('X-XSRF-TOKEN', xsrf)` call (commented out, header no longer attached) | ✅ Killed — `apiClient.test.ts`'s "GIVEN an XSRF-TOKEN cookie WHEN a POST request is made THEN it echoes the token as X-XSRF-TOKEN" failed: `headers.get('X-XSRF-TOKEN')` was `null` instead of `'abc123'` |
+| 3 | `admin/src/presentation/components/ApprovalBanner.tsx:8-11` | Swapped `VARIANT_CLASSES` mapping: `pending` → `bg-qor-danger`, `rejected` → `bg-qor-warning` (colors inverted) | ✅ Killed — `ApprovalBanner.test.tsx`'s "pending … uses the QOR warning color" and "rejected … uses the QOR danger color" tests both failed on the inverted class name |
+
+**Sensor depth**: lightweight (default tier) — 3 targeted behavior-level mutations covering the three highest-risk pieces of new logic this phase introduced (approval-state gate, CSRF header attachment, banner color mapping).
+**Result**: 3/3 killed — PASS ✅. The sensor itself is clean; the FAIL verdict below is driven by the AC/Done-when gap, not by weak tests.
+
+---
+
+## Gate Check (MANDATORY, re-run independently)
+
+All commands re-run fresh from the current merged `HEAD` (`8acf6a4`), no branch switch performed.
+
+| Gate command | Result |
+| --- | --- |
+| `cd admin && npm ci` | ✅ 128 packages installed, 0 vulnerabilities |
+| `npm run build` (`tsc -b && vite build`) | ✅ 32 modules transformed, built in 353ms, no type errors |
+| `npm run lint` (`oxlint`) | ✅ 0 problems (confirmed by redirecting stdout/stderr to files and checking exit code 0 directly — the terminal initially showed a spurious "ESLint output (JSON parse failed)" message from the harness's own output-parsing layer, not from oxlint itself; re-run with output redirected to files reproduced a clean pass every time) |
+| `npm run test` (`vitest run`) | ✅ 3 test files, 16/16 passed |
+| `cd admin/e2e && npm ci` | ✅ 3 packages (Playwright + browsers already cached) |
+| Live dev server (`npm run dev -- --host 0.0.0.0 --port 5174`) + `ADMIN_PANEL_URL=http://localhost:5174 npx playwright test` | ✅ 8/8 passed, including both backend-dependent tests — the real backend at `http://localhost:8000` was already live (confirmed via `curl` returning 403 for the unauthenticated super-admin endpoint before the suite ran), so no test was skipped |
+
+- **Test count before feature**: 0
+- **Test count after feature**: 24 (16 Vitest + 8 Playwright)
+- **Delta**: +24 new tests, 0 removed, 0 weakened
+- **Skipped tests**: none (backend was live; both backend-dependent e2e tests ran for real)
+- **Failures**: none — the gate itself is fully green; the FAIL verdict comes from the AC/Done-when coverage gap above, not from any failing test
+
+---
+
+## Code Quality
+
+| Principle | Status |
+| --- | --- |
+| Minimum code (no speculative flexibility) | ✅ — no screens/features beyond T23/T24's literal scope (no event/venue/promoter UI leaked in from later phases) |
+| Surgical changes (only files required for task) | ✅ — diff is confined to `admin/src/{domain,application,infrastructure,presentation}`, `admin/e2e`, config/CI files, and their tests |
+| No scope creep | ✅ |
+| Matches existing patterns/style | ✅ — Clean Architecture layering (domain/application/infrastructure/presentation) matches the backend submodule's own layering convention (AD-012), GIVEN/WHEN/THEN test naming matches AD-010 |
+| Spec-anchored outcome check (asserted values match spec) | ✅ where covered (ADMIN-04); ❌ gap on ADMIN-05's frontend guard (see AC table) |
+| Per-layer Coverage Expectation met | ⚠️ Partial — component/unit layer (`ApprovalBanner`, `apiClient`) and page-level integration (`Login.test.tsx`) both cover happy + edge + error paths well; the route/guard layer that T23 promised has no corresponding component to test, so "coverage" there is a false floor (see gap) |
+| Every test in scope maps to a spec AC, listed edge case, or Done-when criterion (no unclaimed tests) | ✅ — all 24 tests map to ADMIN-04, the 401/network-failure edge cases, or a T23/T24 styling Done-when bullet; none found testing unrequested behavior |
+| Documented project quality/testing guidelines followed | tasks.md Coding Conventions; `docs/admin-panel/qor-design-tokens.md` (referenced by e2e spec comments, confirmed to exist at the repo root) |
+| Real bugs found by pre-merge code review actually fixed | ✅ — spot-checked all 4 "Critical" items from commit `207c4b0`'s message against current code: unhandled fetch rejection now caught (`useOrganizerLogin.ts:32-36`), `navigate()`-during-render replaced with `<Navigate replace />` (`Login.tsx:21-26`), `apiClient.ts:3-8` now throws fast on missing `VITE_API_URL`, and the mobile-breakpoint CSS now targets the real `.admin-body-wrapper` class and resets both `width` and `margin-left` (`src/index.css:16-24`, confirmed by the passing `login-shell.spec.ts:117-129` overflow regression test) |
+
+❌ One "No" (route-guard AC coverage) → fix task created below.
+
+---
+
+## Findings
+
+### Finding 1 — T23's super-admin route-guard Done-when criterion is unimplemented (Major, blocks Phase 8 sign-off)
+
+**Root cause**: T23's task text lists "Super-admin-only pending-organizers list route is unreachable for the organizer guard (403 surfaces as an in-app message, not a raw error page)" as a Done-when criterion, and ADMIN-05 as a covered requirement, but no route, guard component, or redirect-on-403 logic was ever written in `admin/src`. `AppRoutes.tsx` (`admin/src/presentation/routes/AppRoutes.tsx:12-21`) defines only `/login`, `/forbidden` (a static, directly-navigable page), `/` (the app shell), and a catch-all redirect to `/login` — there is no super-admin-only route to guard in the first place, and no wrapper component (e.g. a `RequireRole`/`RouteGuard`) exists anywhere in the codebase.
+
+**Fix task**:
+- **What**: Add a super-admin-only route (even a placeholder pending-organizers list page, since the real one is a later phase) and a route-guard component that redirects to `/forbidden` when the backend returns 403 for a guarded request, or gates the route client-side based on the authenticated session's role.
+- **Where**: `admin/src/presentation/routes/AppRoutes.tsx`, a new guard component (e.g. `admin/src/presentation/routes/RequireSuperAdmin.tsx`)
+- **Verify**: A Vitest test rendering the guarded route as an organizer-session user and asserting it renders `/forbidden` content (or redirects there), not the guarded page.
+- **Done when**: T23's own Done-when bullet is literally true and test-covered, not just proxied by a direct-navigation e2e assertion.
+- **Priority**: Major — this is an explicit, named Done-when criterion and part of ADMIN-05's stated requirement coverage for this phase; it is not a stretch goal.
+
+### Finding 2 — `AppRoutes.tsx`'s `SPEC_DEVIATION` comment is honest and correctly scoped (informational, not blocking)
+
+`admin/src/presentation/routes/AppRoutes.tsx:6-11` documents that `/` does not redirect an unauthenticated visitor to `/login`, because no `GET /organizer/me` session-check endpoint exists yet in the backend. This is accurately self-flagged, matches the stated reason (confirmed: `routes/admin-panel.php` was not touched in this phase and no such endpoint exists), and is explicitly deferred to T25+ ("Nested screens added in later phases... will surface a 401/403 there"). Not a defect in this phase's scope — noted for the record per validate.md's instruction to surface `SPEC_DEVIATION` comments rather than pass over them silently.
+
+### Finding 3 — ADMIN-01 is listed as a T23/T24 requirement but has no frontend deliverable in this phase (informational, not blocking)
+
+T23/T24's header lists ADMIN-01 as a covered requirement, but nothing in this phase's diff builds the Super-Admin-facing pending-organizers list screen the AC describes — only the backend endpoint (already verified in Phase 2) exists. This does not block Phase 8 sign-off (T23/T24's actual Done-when bullets never mention a pending-organizers list UI), but the requirement tagging on these two tasks over-claims scope. Recommend tasks.md drop ADMIN-01 from T23/T24's Requirement line, or add an explicit future task for the Super Admin's own pending-organizers screen, whichever the project intends.
+
+---
+
+## Requirement Traceability Update
+
+| Requirement | Previous Status | New Status |
+| --- | --- | --- |
+| ADMIN-01 | Design / Pending (stale — Phase 2 already verified the backend half) | Execute / Verified (backend, per Phase 2 evidence — no frontend deliverable exists or was promised by this phase's actual Done-when criteria) |
+| ADMIN-04 | Design / Pending (stale — Phase 2 already verified the backend half) | Execute / Verified (backend confirmed in Phase 2; frontend now fully covered by this phase's unit + e2e tests, see AC table) |
+| ADMIN-05 | Design / Pending (stale — Phase 2 already verified the backend half) | Execute / ❌ Needs Fix (backend confirmed in Phase 2; this phase's frontend route-guard mechanism is unimplemented — see Finding 1) |
+
+---
+
+## Fix Plans
+
+### Fix 1: Implement the super-admin route guard T23 promised (see Finding 1)
+
+- **Root cause**: No guard component or guarded route exists; the Done-when bullet was marked as a goal but never built.
+- **Fix task**: As described in Finding 1 above.
+- **Priority**: Major
+
+---
+
+## Summary
+
+**Overall**: ❌ **Not Ready** (T23/T24 / ADMIN-01, 04, 05)
+
+**Spec-anchored check**: 1/3 ACs (ADMIN-04) fully matched spec-defined outcomes with fresh frontend `file:line` evidence; ADMIN-01 correctly out of this phase's actual scope (pre-existing backend coverage only); ADMIN-05 has a real coverage gap on its frontend half (no route guard exists to test).
+**Sensor**: 3/3 mutations killed — the tests that do exist are genuinely discriminating; the FAIL verdict is about missing coverage, not weak coverage.
+**Gate**: 24/24 tests passed (16 Vitest + 8 Playwright), build clean, lint clean, 0 skipped, 0 regressions.
+
+**What works**: The visual/styling contract (sidebar/canvas/input/button/banner colors, radii, transition duration, mobile-breakpoint overflow) is fully implemented and both unit- and e2e-verified against the documented QOR design tokens. The pending/rejected approval-state flow (ADMIN-04) is complete, correctly gated behind a declarative `<Navigate>` (not a render-phase side effect), and covered by both a mocked unit test and a live e2e test asserting exact rendered colors. All four "Critical" bugs the pre-merge code-reviewer subagent found (unhandled fetch rejection, render-phase `navigate()`, missing fail-fast on `VITE_API_URL`, the mobile-overflow bug) are confirmed genuinely fixed in the merged code, with regression tests in place for each.
+
+**Issues found**:
+1. Finding 1 (Major, blocking): T23's super-admin route-guard Done-when criterion has no implementation — no guard component, no guarded route. This is also why tasks.md correctly leaves T23/T24 unchecked; they should stay unchecked until this is fixed.
+2. Finding 3 (informational): ADMIN-01 is tagged on T23/T24 but has no frontend deliverable in this phase — likely a scope-tagging error in tasks.md, not a code defect.
+
+**Next steps**: Route the Fix 1 task back to an implementer (add the guard component + guarded route + a Vitest test proving the redirect), then re-verify. Per validate.md's 3-iteration bound, this is fix→re-verify iteration 0 of a maximum of 3 before escalating. Do **not** mark T23/T24's checkboxes in tasks.md until Fix 1 lands and is re-verified — their current unchecked state is correct and should be left as-is by this report (tasks.md checkbox edits are explicitly out of this verifier's remit).
+
+**Final overall verdict: ❌ FAIL.** One blocking gap (Finding 1) remains open.
+
+---
+
+## Validation: admin-panel Phase 8 (T23-T24) - Re-verify iteration 1 - PASS ✅
+
+**Date**: 2026-09-17
+**Spec**: `.specs/features/admin-panel/spec.md` ("P1: Organizer access is gated by Super Admin approval", lines 52-66; ADMIN-05 traceability row)
+**Scope**: Re-verification of the single gap the prior FAIL entry ("## Validation: admin-panel Phase 8 (T23-T24) - FAIL ❌", above) identified — T23's Done-when bullet "Super-admin-only pending-organizers list route is unreachable for the organizer guard (403 surfaces as an in-app message, not a raw error page)" had no implementation. This is a fix→re-verify cycle (iteration 1 of 3), not a from-scratch re-audit; the rest of Phase 8 (visual/styling contract, ADMIN-04 login/approval-state flow) already passed spec-anchored check, gate, and sensor in the first pass and is not redone here.
+**Diff range**: `admin` submodule, `8acf6a4..cdaef35` (merge commit of PR #2, branch `phase-8-super-admin-guard` → `main`):
+```
+31e2152 fix(admin-panel): implement the super-admin route guard T23 required
+d456a03 fix(admin-panel): address code review findings on the super-admin guard
+```
+Root repo submodule pointer bumped in commit `79c55d7` ("chore(admin-panel): update admin submodule to merged guard fix PR").
+**Verifier**: independent sub-agent (author ≠ verifier) — no prior "done" claim trusted; gap closure re-derived from the diff, tests, and live gate/sensor runs.
+
+---
+
+## Task Completion
+
+| Task | Status | Notes |
+| ---- | ------ | ----- |
+| T23  | ✅ Done | The previously-missing Done-when bullet is now implemented: `admin/src/presentation/routes/RequireSuperAdmin.tsx` is a route guard that calls `checkSuperAdminAccess()` (`admin/src/infrastructure/api/superAdminApi.ts:3-6`, wraps `apiFetch('/api/admin/v1/super-admin/organizers')` and returns `{ authorized: ok }`) on mount, renders `Forbidden` when denied or when the check rejects (fails closed), and renders `<Outlet/>` when authorized. `admin/src/presentation/routes/AppRoutes.tsx:19-24` wires a real guarded route (`/super-admin/organizers`, a placeholder pending-organizers screen) behind this guard. All 6 remaining T23 Done-when bullets (styling, verified in the prior pass) remain implemented and unchanged. |
+| T24  | ✅ Done | `admin/e2e/visual/login-shell.spec.ts:132-148` now has a `describe` block proving both halves: the sibling test at line 133 hits the real backend (`request.get`) and asserts the live 403 status code; the test at line 138 mocks the same endpoint via `page.route()` for a deterministic UI assertion and navigates the browser to `/super-admin/organizers`, asserting `forbidden-message` is visible and `super-admin-organizers` (the protected content's testid) has count 0 — i.e. the guard is proven wired into the actual router, not just tested in isolation. |
+
+**Test Integrity Check**: Test count before this fix: 16 Vitest / 8 Playwright (24 total, per the prior FAIL report). Test count after: 20 Vitest / 8 Playwright (28 total) — confirmed by live `npm run test` (`Test Files 4 passed (4)`, `Tests 20 passed (20)`) and `npx playwright test` (`8 passed`) runs in this session. +4 new Vitest tests (all in `RequireSuperAdmin.test.tsx`), 0 removed, 0 weakened. The e2e file's line count for the super-admin describe block grew (mock added) but its two tests still each assert their own distinct outcome (real 403 vs. mocked-UI Forbidden), not a merged/weaker single assertion.
+
+---
+
+## Spec-Anchored Acceptance Criteria (ADMIN-05 route-guard requirement only — the gap under re-verification)
+
+| Criterion | Spec-defined outcome | `file:line` + assertion expression | Result |
+| --------- | --------------------- | ------------------------------------ | ------ |
+| (a) Guard renders Forbidden when denied | Non-super-admin caller denied access, in-app message not raw error | `admin/src/presentation/routes/RequireSuperAdmin.tsx:42-44` — `if (status === 'forbidden') { return <Forbidden /> }`; unit-proven at `admin/src/presentation/routes/__tests__/RequireSuperAdmin.test.tsx:32-41` — `checkSuperAdminAccessMock.mockResolvedValue({ authorized: false })` then `expect(screen.getByTestId('forbidden-message')).toBeInTheDocument()` + `expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()` | ✅ PASS |
+| (b) Guard renders protected content when authorized | Super-admin caller reaches the guarded route | `RequireSuperAdmin.tsx:46` — `return <Outlet />`; unit-proven at `RequireSuperAdmin.test.tsx:43-52` — `checkSuperAdminAccessMock.mockResolvedValue({ authorized: true })` then `expect(screen.getByTestId('protected-content')).toBeInTheDocument()` + `expect(screen.queryByTestId('forbidden-message')).not.toBeInTheDocument()` | ✅ PASS |
+| (c) Guard fails closed on a rejected/errored check | A network/CORS failure must not be mistaken for authorized | `RequireSuperAdmin.tsx:21-25` — `.catch(() => { if (!cancelled) setStatus('forbidden') })`; unit-proven at `RequireSuperAdmin.test.tsx:56-65` — `checkSuperAdminAccessMock.mockRejectedValue(new TypeError('Failed to fetch'))` then `expect(screen.getByTestId('forbidden-message')).toBeInTheDocument()` + `expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()`. Discrimination-sensor-confirmed below (mutation 1). | ✅ PASS |
+| (d) e2e proves the guard is wired into the router, not tested only in isolation | The guarded route actually denies a browser navigation | `admin/e2e/visual/login-shell.spec.ts:132-136` — `request.get('${API_URL}/api/admin/v1/super-admin/organizers')` → `expect(response.status()).toBe(403)` (real backend, un-mocked); `:138-148` — `page.route('**/api/admin/v1/super-admin/organizers', ...403...)`, `await page.goto('/super-admin/organizers')`, `expect(page.getByTestId('forbidden-message')).toBeVisible()` + `expect(page.getByTestId('super-admin-organizers')).toHaveCount(0)` — this actually drives the browser at the app's real router (`AppRoutes.tsx`'s guarded route), not a component rendered standalone | ✅ PASS |
+
+**Status**: ✅ All 4 sub-criteria of the ADMIN-05 route-guard requirement covered with exact `file:line` evidence — the gap from the prior FAIL entry is closed.
+
+---
+
+## Additional fixes confirmed (from the second code-review pass, informational — not separately required by ADMIN-05 but verified while reading the guard)
+
+- Unhandled promise rejection now `.catch()`'d and fails closed (`RequireSuperAdmin.tsx:21-25`, tested above).
+- Loading state (`status === 'checking'`) is wrapped in `bg-qor-canvas` (`RequireSuperAdmin.tsx:34`), matching every sibling screen's background convention instead of the previously-reported invisible white-on-white text.
+- Two new unit tests added: rejected-check fails closed (`RequireSuperAdmin.test.tsx:56-65`, same as sub-criterion (c) above) and checking-state renders before resolving with neither Forbidden nor protected content shown (`RequireSuperAdmin.test.tsx:67-85` — asserts `screen.getByRole('status')` has text `/checking access/i` and both `protected-content` and `forbidden-message` are absent before the promise resolves).
+
+---
+
+## Discrimination Sensor
+
+Isolation method: `git worktree add /tmp/admin-sensor-scratch-2 HEAD` from inside `admin/` (real git worktree). `node_modules` symlinked into the scratch (removed before worktree cleanup). Baseline `git status --porcelain` on the real `admin/` tree was empty before sensor work; re-confirmed empty (`git status --porcelain`) after `git worktree remove --force /tmp/admin-sensor-scratch-2`. No `git stash` used.
+
+| Mutation | File:line | Description | Killed? |
+| -------- | --------- | ------------ | ------- |
+| 1 | `admin/src/presentation/routes/RequireSuperAdmin.tsx:19` (scratch copy) | Changed `if (!cancelled) setStatus(authorized ? 'authorized' : 'forbidden')` → `if (!cancelled) setStatus('authorized')` (always authorizes, regardless of the backend's answer) | ✅ Killed — `npx vitest run src/presentation/routes/__tests__/RequireSuperAdmin.test.tsx` against the scratch copy: 1 of 4 tests failed ("GIVEN the backend denies super-admin access... THEN it renders the in-app forbidden message") — `getByTestId('forbidden-message')` could not be found; the DOM instead showed `protected-content` |
+
+**Sensor depth**: lightweight (default tier) — 1 targeted mutation on the exact behavior this re-verify cycle exists to confirm (the guard's deny path), per the task instructions for this iteration.
+**Result**: 1/1 killed — PASS ✅.
+
+---
+
+## Gate Check (MANDATORY, re-run independently)
+
+All commands re-run fresh from the current merged `HEAD` (`cdaef35`), no branch switch performed.
+
+| Gate command | Result |
+| --- | --- |
+| `cd admin && npm ci` | ✅ 128 packages installed, 0 vulnerabilities |
+| `npm run build` (`tsc -b && vite build`) | ✅ 34 modules transformed, built in 387ms, no type errors |
+| `npm run lint` (`oxlint`) | ✅ 0 problems |
+| `npm run test` (`vitest run`) | ✅ 4 test files, 20/20 passed |
+| `cd admin/e2e && npm ci` | ✅ 3 packages (Playwright + browsers already cached) |
+| Backend reachability check: `curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/api/admin/v1/super-admin/organizers` | `403` — backend live, reachable |
+| Live dev server (`npm run dev -- --host 0.0.0.0 --port 5174`) + `ADMIN_PANEL_URL=http://localhost:5174 ADMIN_PANEL_API_URL=http://localhost:8000 npx playwright test` (from `admin/e2e`) | ✅ 8/8 passed — backend was live, so no test was skipped |
+
+- **Test count before this fix**: 16 Vitest + 8 Playwright = 24
+- **Test count after this fix**: 20 Vitest + 8 Playwright = 28
+- **Delta**: +4 new Vitest tests, 0 removed, 0 weakened
+- **Skipped tests**: none — backend was live, both backend-dependent e2e tests ran for real
+- **Failures**: none
+
+---
+
+## Code Quality
+
+| Principle | Status |
+| --- | --- |
+| Minimum code (no speculative flexibility) | ✅ — guard, API helper, one placeholder route; no unrelated screens added |
+| Surgical changes (only files required for the fix) | ✅ — diff confined to `RequireSuperAdmin.tsx`, `superAdminApi.ts`, `AppRoutes.tsx`, their tests, and the e2e spec's super-admin describe block |
+| No scope creep | ✅ |
+| Matches existing patterns/style | ✅ — same GIVEN/WHEN/THEN test naming, same Clean Architecture layering (`infrastructure/api`, `presentation/routes`) as the rest of the codebase |
+| Spec-anchored outcome check (asserted values match spec) | ✅ — see AC table above, all 4 sub-criteria PASS |
+| Per-layer Coverage Expectation met | ✅ — guard component now has 1:1 coverage for all 4 states (checking/authorized/forbidden/rejected); route-level e2e covers both the real-backend and mocked-UI paths |
+| Every test in scope maps to a spec AC or Done-when criterion (no unclaimed tests) | ✅ — all 4 new Vitest tests map directly to the ADMIN-05 route-guard Done-when bullet; the 2 e2e tests map to the same |
+| Documented project quality/testing guidelines followed | tasks.md Coding Conventions; same as prior pass |
+
+---
+
+## Requirement Traceability Update
+
+| Requirement | Previous Status | New Status |
+| --- | --- | --- |
+| ADMIN-05 | Execute / Needs Fix (T9 backend verified; T23 frontend route guard unimplemented — see Phase 8 validation Finding 1) | Execute / **Verified** — frontend route guard now implemented and covered (this re-verify entry) |
+
+(`spec.md`'s traceability table updated to match.)
+
+---
+
+## Summary
+
+**Overall**: ✅ **Ready**
+
+**Spec-anchored check**: 4/4 ADMIN-05 route-guard sub-criteria matched spec-defined outcomes with fresh `file:line` evidence.
+**Sensor**: 1/1 mutation killed.
+**Gate**: 28/28 tests passed (20 Vitest + 8 Playwright), build clean, lint clean, 0 skipped, 0 regressions.
+
+**What works**: The super-admin route guard (`RequireSuperAdmin.tsx`) is implemented, wired into the real router (`AppRoutes.tsx`), fails closed on both an explicit denial and a rejected/errored check, and is covered by 4 unit tests plus 2 e2e tests (one hitting the real backend for the actual 403 status code, one mocking it for a deterministic UI assertion that the guard actually redirects/renders Forbidden when navigated to in the browser). The previously-reported invisible loading state and unhandled promise rejection (found in a second code-review pass) are both fixed and tested.
+
+**Issues found**: None outstanding for this gap.
+
+**Next steps**: None — T23 and T24 are both fully done. Marked `[x]` in tasks.md with all Done-when bullets ticked, since this re-verification is a clean PASS.
+
+**Final overall verdict: ✅ PASS.** The gap from the prior FAIL entry is closed; no gaps remain for T23/T24.

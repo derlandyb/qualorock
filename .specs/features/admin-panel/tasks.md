@@ -807,7 +807,7 @@ T43 -> T44
 
 ---
 
-### T23: Build app shell + organizer login/approval-state screen
+### T23: Build app shell + organizer login/approval-state screen ✅
 
 **What**: Fixed dark sidebar (collapsible) + topbar shell, and the organizer login screen showing pending/rejected state banners, matching the Corona reference's verified tokens.
 **Where**: `admin/src/presentation/layouts/AppShell.tsx, admin/src/presentation/pages/Login.tsx`
@@ -821,13 +821,13 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Sidebar: fixed, `#191c24` surface (verified: dashboard sidebar background), collapses via `all .25s ease-out`; body wrapper is `width: calc(100% - 244px)` when expanded, `100%` under 992px
-- [ ] Page canvas background `#000` (verified: dashboard `body` background)
-- [ ] Login form inputs: `#191c24` background, `1px #2c2e33` border, `2px` radius (`rounded-sm`), white text, label `14px/500` white (verified: basic-form.html computed styles)
-- [ ] Primary submit button: Default-variant Primary - solid `#0090e7` fill, white text, `6px` radius (verified: Buttons reference page + dashboard 'Add' button)
-- [ ] Pending-state banner: `#ffab00` (warning) pill, `6px` radius, `4px 8px` padding, `12px/500` white text (verified: dashboard 'Pending' badge)
-- [ ] Rejected-state banner: same pill treatment in `#fc424a` (danger, verified: dashboard 'Failed' badge), shows the rejection reason when present
-- [ ] Super-admin-only pending-organizers list route is unreachable for the organizer guard (403 surfaces as an in-app message, not a raw error page)
+- [x] Sidebar: fixed, `#191c24` surface (verified: dashboard sidebar background), collapses via `all .25s ease-out`; body wrapper is `width: calc(100% - 244px)` when expanded, `100%` under 992px
+- [x] Page canvas background `#000` (verified: dashboard `body` background)
+- [x] Login form inputs: `#191c24` background, `1px #2c2e33` border, `2px` radius (`rounded-sm`), white text, label `14px/500` white (verified: basic-form.html computed styles)
+- [x] Primary submit button: Default-variant Primary - solid `#0090e7` fill, white text, `6px` radius (verified: Buttons reference page + dashboard 'Add' button)
+- [x] Pending-state banner: `#ffab00` (warning) pill, `6px` radius, `4px 8px` padding, `12px/500` white text (verified: dashboard 'Pending' badge)
+- [x] Rejected-state banner: same pill treatment in `#fc424a` (danger, verified: dashboard 'Failed' badge), shows the rejection reason when present
+- [x] Super-admin-only pending-organizers list route is unreachable for the organizer guard (403 surfaces as an in-app message, not a raw error page)
 
 **Tests**: visual
 **Gate**: quick
@@ -836,7 +836,7 @@ T43 -> T44
 
 ---
 
-### T24: Verify Screen: App shell + Login/Approval-state against Corona reference
+### T24: Verify Screen: App shell + Login/Approval-state against Corona reference ✅
 
 **What**: Navigate the running admin dev build with Playwright, screenshot the login screen and the collapsed/expanded sidebar states, and compare against the Corona reference (dashboard shell + buttons + forms pages already captured this session) using `getComputedStyle` on the same properties sampled from the reference (background colors, border-radius, padding, transition duration).
 **Where**: `admin/e2e/visual/login-shell.spec.ts`
@@ -850,10 +850,10 @@ T43 -> T44
 
 **Done when**:
 
-- [ ] Sidebar background computes to `#191c24` and body-wrapper width matches `calc(100% - 244px)` when expanded
-- [ ] Login input background/border/radius match the verified reference values exactly
-- [ ] Primary button background matches `#0090e7`; pending/rejected banners match `#ffab00`/`#fc424a` respectively
-- [ ] Any mismatch is filed as a fix note before this phase is marked done - no silent drift accepted
+- [x] Sidebar background computes to `#191c24` and body-wrapper width matches `calc(100% - 244px)` when expanded
+- [x] Login input background/border/radius match the verified reference values exactly
+- [x] Primary button background matches `#0090e7`; pending/rejected banners match `#ffab00`/`#fc424a` respectively
+- [x] Any mismatch is filed as a fix note before this phase is marked done - no silent drift accepted
 
 **Tests**: visual
 **Gate**: quick

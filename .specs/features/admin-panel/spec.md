@@ -200,11 +200,11 @@ Every ambiguity is resolved or recorded here - nothing is left silently unclear.
 
 | Requirement ID | Story | Phase | Status |
 | --- | --- | --- | --- |
-| ADMIN-01 | P1: Organizer access is gated by Super Admin approval | Design | Pending |
+| ADMIN-01 | P1: Organizer access is gated by Super Admin approval | Execute | Verified (backend, T9; no frontend deliverable in scope — see Phase 8 validation Finding 3) |
 | ADMIN-02 | P1: Organizer access is gated by Super Admin approval | Design | Pending |
 | ADMIN-03 | P1: Organizer access is gated by Super Admin approval | Design | Pending |
-| ADMIN-04 | P1: Organizer access is gated by Super Admin approval | Design | Pending |
-| ADMIN-05 | P1: Organizer access is gated by Super Admin approval | Design | Pending |
+| ADMIN-04 | P1: Organizer access is gated by Super Admin approval | Execute | Verified (T10 backend + T23/T24 frontend) |
+| ADMIN-05 | P1: Organizer access is gated by Super Admin approval | Execute | Verified (T9 backend verified; T23 frontend route guard implemented and verified — see Phase 8 re-verify iteration 1) |
 | ADMIN-06 | P1: Register and manage events | Design | Pending |
 | ADMIN-07 | P1: Register and manage events | Design | Pending |
 | ADMIN-08 | P1: Register and manage events | Design | Pending |
